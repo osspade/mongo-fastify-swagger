@@ -20,7 +20,7 @@ export default class fastifyUtil {
       // set the default sender email address to jane.doe@example.tld
       from: process.env.SMTP_DEFAULTFROM ||'No Reply <noreply@example.com>',
       // set the default email subject to 'default example'
-      subject: process.env.SMTP_DEFAULTSUBJECT ||'Default Example',
+      subject: process.env.SMTP_DEFAULTSUBJECT || 'Default Example',
     },
     transport: {
       host: process.env.SMTP_HOST,
@@ -32,9 +32,13 @@ export default class fastifyUtil {
       }
     }
   }
+  
 
-
-
+swaggerInfo=  {
+    title:  process.env.SWAGGER_TITLE || `${dbName} Example API Platform`,
+    description:  process.env.SWAGGER_DESC|| `Testing ${dbName} Example API Platform`,
+    version:  process.env.SWAGGER_VER || '0.1.0'
+  }
 
   constructor() {
     const fastifyUtil = this.util(Fastify({
@@ -77,11 +81,7 @@ export default class fastifyUtil {
 
     await fastify.register(import('@fastify/swagger'), {
       openapi: {
-        info: {
-          title: 'Feaure Example API Platform',
-          description: 'Testing Feaure Example API Platform',
-          version: '0.1.0'
-        },
+        info: this.swaggerInfo,
         components: {
           securitySchemes: {
             apiauth: {
