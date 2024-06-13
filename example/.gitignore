@@ -1,5 +1,4 @@
 node_modules
 upload/*
 client-sdk
-example/package-lock.json
 package-lock.json
