@@ -2,6 +2,8 @@
 import { account, form, upload, wipay, product, order, events } from "mongo-fastify-swagger"
 import Fastify from 'fastify'
 import * as path from 'path';
+import * as fs from 'fs';
+
 import * as ejs from 'ejs'
 import fastifyCron from 'fastify-cron'
 import { fileURLToPath } from 'url';
@@ -12,7 +14,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export default class fastifyUtil {
-
+  upload = process.env.UPLOAD || path.join(__dirname, 'upload/')
   dbName = process.env.MONGO_DB || 'default'
   mongoUrl = process.env.MONGO_URL || 'mongodb://root:secret@localmongo:32768/';
   smtpCredentials = {
@@ -117,14 +119,16 @@ export default class fastifyUtil {
       },
     });
 
+   if (!fs.existsSync(this.upload))  fs.mkdirSync(this.upload, 0o744);
 
+    
     await fastify.register(import('@fastify/static'), {
-
-      root: path.join(__dirname, 'upload/'),
+      root: this.upload,
       prefix: '/upload/', // optional: default '/'
       index: false,
       list: true
     })
+
 
     await fastify.register(import('@fastify/multipart'), {
       fieldNameSize: 100, // Max field name size in bytes

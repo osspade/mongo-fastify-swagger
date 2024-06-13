@@ -1,4 +1,4 @@
-import { events, common } from "backend-api"
+import { events, common } from "mongo-fastify-swagger"
 export default class feature {
 
     constructor(util) {
