@@ -1,0 +1,28 @@
+{"form":
+[
+  {
+    "type": "header",
+    "subtype": "h1",
+    "label": "Header",
+    "access": false
+  },
+  {
+    "type": "file",
+    "required": false,
+    "label": "File Upload",
+    "className": "form-control",
+    "name": "file-1712501827254-0",
+    "access": false,
+    "multiple": false
+  },
+  {
+    "type": "date",
+    "required": false,
+    "label": "Date Field",
+    "className": "form-control",
+    "name": "date-1712501830515-0",
+    "access": false,
+    "subtype": "date"
+  }
+]
+}

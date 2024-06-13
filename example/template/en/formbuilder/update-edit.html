@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Required meta tag -->
+  <meta charset="utf-8">
+  <title>formBuilder - Update/Edit</title>
+</head>
+<body>
+
+<div>
+          <label for="authkey" class="formbuilder-text-label">authkey</label>
+          <input type="text" name="authkey" id="authkey" onchange="auth(this.value)">
+            </div>
+
+  <a href="/formbuilder/render/<%- _id %>/">Render Form </a>
+  
+  <div id="fb-editor"></div>
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js"></script>
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/rateYo/2.3.2/jquery.rateyo.min.css">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/rateYo/2.3.2/jquery.rateyo.min.js"></script>
+      <script src="https://formbuilder.online/assets/js/form-builder.min.js"></script>
+      <script>
+
+  function auth(value){
+  localStorage.setItem("authkey", value);
+}
+
+function get_auth(key){
+  return localStorage.getItem(key);
+}
+
+jQuery(function($) {
+   document.getElementById('authkey').value   = get_auth("authkey")
+  var fbTemplate = document.getElementById('fb-editor')
+
+  let customfields = [{
+    label: 'Signature',
+    attrs: {
+      type: 'signature'
+    },
+    icon: '&#9998;'
+  },{
+    label: 'Rating',
+    attrs: {
+      type: 'rating'
+    },
+    icon: '🌟'
+  }];
+  
+  let customTemplates = {
+    signature: function(fieldData) {
+      return {
+        field: '<div><input class="form-control" value="'+(fieldData.value ? fieldData.value : "")+'" id="'+fieldData.id+'" name="'+fieldData.name+'" type="hidden" /> <canvas style="padding:5px;outline: black 3px solid;" id="_'+fieldData.id+'"></canvas></div>',
+        onRender: function() {
+          var signaturePad = new SignaturePad(document.getElementById( `_${fieldData.name}`) );
+         if(fieldData.userData) signaturePad.fromData(JSON.parse(fieldData.userData));
+          signaturePad.addEventListener("endStroke",(signature)=>{
+            document.getElementById(fieldData.name).setAttribute("value", JSON.stringify(signaturePad.toData()))
+          })
+        }
+      };
+    },
+    rating: function(fieldData) {
+      return {
+        field: '<div><input class="form-control" value="'+(fieldData.value ? fieldData.value : "")+'" id="'+fieldData.id+'" name="'+fieldData.name+'"  type="hidden" /> <span id="_'+fieldData.id+'"></div>',
+        onRender: function() {        
+          var rate = $(document.getElementById(`_${fieldData.name}`)).rateYo(fieldData.userData ? JSON.parse(fieldData.userData) : {});
+              rate.on("rateyo.set", function (e, data) { 
+                document.getElementById(fieldData.name).setAttribute("value", JSON.stringify(data))
+              });
+        }
+      };
+    }
+    
+  };
+
+    options = {
+      formData: <%- (typeof data.form == "object" ? JSON.stringify(data.form) : data.form) %>,
+      fields: customfields,
+      templates:customTemplates,
+      onSave: function(evt, _formData) {
+
+      $.ajax({ 
+            url: '/form/update/<%- _id %>', 
+            type: 'PUT', 
+            contentType: "application/json",
+            headers: {"Authorization": `Bearer ${get_auth('authkey')}` },
+            data: JSON.stringify({
+                'title':"<%- title %>",
+                'data': {"form": _formData}
+            }),
+            success: function (result) { 
+                alert("Form Saved!")
+            } 
+        }); 
+
+      }
+    }
+
+//  $(container).formBuilder(options);
+ let fb = $(fbTemplate).formBuilder(options);
+
+});
+
+  </script>
+</body>
+</html>
