@@ -7,13 +7,26 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import mongoose from 'mongoose';
+import { account,form, upload,wipay,product,order,events } from "backend-api"
 
 export default class fastifyUtil {
 
   constructor() {
-    return this.util(Fastify({
+    const fastifyUtil =  this.util(Fastify({
       logger: true
     }));
+   
+    fastifyUtil.then( util => {
+      new account(util);
+      new form(util)
+      new upload(util)
+      new wipay(util)
+      new product(util)
+      new order(util)
+      new events()?.route(util)
+    })
+
+    return fastifyUtil
   }
 
 
@@ -101,16 +114,16 @@ export default class fastifyUtil {
 
     const dbName = 'default'
     const mongo = 'mongodb://root:secret@localmongo:32768/' //local
-    const ORM = await mongoose.connect(mongo, { dbName: dbName})
+    const orm = await mongoose.connect(mongo, { dbName: dbName})
     await fastify.register(import('@fastify/mongodb'), {
       forceClose: true,
       url: mongo
     })
-    const DB = await fastify.mongo.client.db(dbName)
+    const db = await fastify.mongo.client.db(dbName)
 
     await fastify.register(import('@fastify/auth')).decorate('authenticate', function (request, reply, done) {
       if (request.headers.authorization) {
-        const collection = DB.collection('account');
+        const collection = db.collection('account');
         collection.findOne({ "authkey": request.headers?.authorization.split(" ")[1] }, { projection: { _id:1, roles: 1, profile: 1 } }).then(result => {
           if (result) {
             request.auth = result;
@@ -153,24 +166,22 @@ export default class fastifyUtil {
       }
     })
 
-    let util = {
-      "fastify": fastify,
-      "db": DB,
-      "orm": ORM,
-    }
+
 
     await fastify.register(fastifyCron, {
       jobs: [
         {
           cronTime: '* * * * *',
-          onTick: ()=>{this.mailer(util)},
+          onTick: ()=>{
+            this.mailer({fastify,db})
+           // this.notification({fastify,db})
+          },
           start: true // Start job immediately
         }
       ]
     })
-
-
-    return util;
+    
+    return {fastify,db,orm};
   }
 
 
@@ -185,7 +196,7 @@ export default class fastifyUtil {
 
       util.fastify.mailer.verify(async (error, success) => {
         if (error) {
-          this.log(util, { "mail": "failed", "error": error })
+          new events().log(util, { "mail": "failed", "error": error })
           collection.updateOne(
             { "_id": data._id },
             { $push: { log: { "status": "failed", "errors": error , "updated": new Date() } } })
@@ -200,7 +211,7 @@ export default class fastifyUtil {
 
             if (errors) {
 
-              this.log(util, { "mail": "failed", "errors": errors })
+              new events().log(util, { "mail": "failed", "errors": errors })
               //update event log
               collection.updateOne(
                 { "_id": data._id },
@@ -239,9 +250,6 @@ export default class fastifyUtil {
         subject: await util.fastify.view(data.details.subject, data.details),
         html: await util.fastify.view(data.details.message, data.details)
       }
-
-
-
 
     });
 
