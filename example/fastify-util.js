@@ -14,11 +14,11 @@ dotenv.config();
 export default class fastifyUtil {
 
   dbName = process.env.MONGO_DB || 'default'
-  mongoUrl =  process.env.MONGO_URL || 'mongodb://root:secret@localmongo:32768/';
+  mongoUrl = process.env.MONGO_URL || 'mongodb://root:secret@localmongo:32768/';
   smtpCredentials = {
     defaults: {
       // set the default sender email address to jane.doe@example.tld
-      from: process.env.SMTP_DEFAULTFROM ||'No Reply <noreply@example.com>',
+      from: process.env.SMTP_DEFAULTFROM || 'No Reply <noreply@example.com>',
       // set the default email subject to 'default example'
       subject: process.env.SMTP_DEFAULTSUBJECT || 'Default Example',
     },
@@ -32,12 +32,12 @@ export default class fastifyUtil {
       }
     }
   }
-  
 
-swaggerInfo=  {
-    title:  process.env.SWAGGER_TITLE || `${dbName} Example API Platform`,
-    description:  process.env.SWAGGER_DESC|| `Testing ${dbName} Example API Platform`,
-    version:  process.env.SWAGGER_VER || '0.1.0'
+
+  swaggerInfo = {
+    title: process.env.SWAGGER_TITLE || `${this.dbName} Example API Platform`,
+    description: process.env.SWAGGER_DESC || `Testing ${this.dbName} Example API Platform`,
+    version: process.env.SWAGGER_VER || '0.1.0'
   }
 
   constructor() {
@@ -177,8 +177,8 @@ swaggerInfo=  {
         {
           cronTime: '* * * * *',
           onTick: () => {
-            this.mailer({ fastify, db })
-            // this.notification({fastify,db})
+            if(process.env.SMTP_HOST) this.mailer({ fastify, db })
+              // this.notification({fastify,db})
           },
           start: true // Start job immediately
         }
