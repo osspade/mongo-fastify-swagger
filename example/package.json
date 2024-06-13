@@ -7,7 +7,7 @@
   },
   "type": "module",
   "dependencies": {
-    "backend-api": "https://github.com/osspade/mongo-fastify-swagger"
+    "mongo-fastify-swagger": "git+https://github.com/osspade/mongo-fastify-swagger.git"
   },
   "devDependencies": {
     "@openapitools/openapi-generator-cli": "^2.13.4"

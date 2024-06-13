@@ -1,4 +1,5 @@
 // Import the framework and instantiate it
+import { account, form, upload, wipay, product, order, events } from "mongo-fastify-swagger"
 import Fastify from 'fastify'
 import * as path from 'path';
 import * as ejs from 'ejs'
@@ -7,7 +8,6 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import mongoose from 'mongoose';
-import { account, form, upload, wipay, product, order, events } from "backend-api"
 import dotenv from 'dotenv';
 dotenv.config();
 
