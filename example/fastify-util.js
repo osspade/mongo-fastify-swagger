@@ -7,16 +7,41 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import mongoose from 'mongoose';
-import { account,form, upload,wipay,product,order,events } from "backend-api"
+import { account, form, upload, wipay, product, order, events } from "backend-api"
+import dotenv from 'dotenv';
+dotenv.config();
 
 export default class fastifyUtil {
 
+  dbName = process.env.MONGO_DB || 'default'
+  mongoUrl =  process.env.MONGO_URL || 'mongodb://root:secret@localmongo:32768/';
+  smtpCredentials = {
+    defaults: {
+      // set the default sender email address to jane.doe@example.tld
+      from: process.env.SMTP_DEFAULTFROM ||'No Reply <noreply@example.com>',
+      // set the default email subject to 'default example'
+      subject: process.env.SMTP_DEFAULTSUBJECT ||'Default Example',
+    },
+    transport: {
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    }
+  }
+
+
+
+
   constructor() {
-    const fastifyUtil =  this.util(Fastify({
+    const fastifyUtil = this.util(Fastify({
       logger: true
     }));
-   
-    fastifyUtil.then( util => {
+
+    fastifyUtil.then(util => {
       new account(util);
       new form(util)
       new upload(util)
@@ -38,17 +63,17 @@ export default class fastifyUtil {
           // This is NOT recommended for production as it enables reflection exploits
           origin: true
         };
-    
+
         // do not include CORS headers for requests from localhost
         if (/^localhost$/m.test(req.headers.origin)) {
           corsOptions.origin = false
         }
-    
+
         // callback expects two parameters: error and options
         callback(null, corsOptions)
       }
     })
-    
+
 
     await fastify.register(import('@fastify/swagger'), {
       openapi: {
@@ -112,25 +137,24 @@ export default class fastifyUtil {
     })
 
 
-    const dbName = 'default'
-    const mongo = 'mongodb://root:secret@localmongo:32768/' //local
-    const orm = await mongoose.connect(mongo, { dbName: dbName})
     await fastify.register(import('@fastify/mongodb'), {
       forceClose: true,
-      url: mongo
+      url: this.mongoUrl
     })
-    const db = await fastify.mongo.client.db(dbName)
+    const db = await fastify.mongo.client.db(this.dbName)
+    const orm = await mongoose.connect(this.mongoUrl, { dbName: this.dbName })
+
 
     await fastify.register(import('@fastify/auth')).decorate('authenticate', function (request, reply, done) {
       if (request.headers.authorization) {
         const collection = db.collection('account');
-        collection.findOne({ "authkey": request.headers?.authorization.split(" ")[1] }, { projection: { _id:1, roles: 1, profile: 1 } }).then(result => {
+        collection.findOne({ "authkey": request.headers?.authorization.split(" ")[1] }, { projection: { _id: 1, roles: 1, profile: 1 } }).then(result => {
           if (result) {
             request.auth = result;
             done();
 
           } else {
-            reply.status(400).send({
+            reply.status(200).send({
               message: "Authentication Failed"
             });
           }
@@ -146,42 +170,22 @@ export default class fastifyUtil {
 
     })
 
-
-
-    await fastify.register(import('fastify-mailer'), {
-      defaults: {
-        // set the default sender email address to jane.doe@example.tld
-        from: 'No Reply <noreply@example.com>',
-        // set the default email subject to 'default example'
-        subject: 'Default Example',
-      },
-      transport: {
-        host: 'smtp.example.org',
-        port: 465,
-        secure: true, // use TLS
-        auth: {
-          user: 'noreply@example.com',
-          pass: 'password'
-        }
-      }
-    })
-
-
+    await fastify.register(import('fastify-mailer'), this.smtpCredentials)
 
     await fastify.register(fastifyCron, {
       jobs: [
         {
           cronTime: '* * * * *',
-          onTick: ()=>{
-            this.mailer({fastify,db})
-           // this.notification({fastify,db})
+          onTick: () => {
+            this.mailer({ fastify, db })
+            // this.notification({fastify,db})
           },
           start: true // Start job immediately
         }
       ]
     })
-    
-    return {fastify,db,orm};
+
+    return { fastify, db, orm };
   }
 
 
@@ -199,7 +203,7 @@ export default class fastifyUtil {
           new events().log(util, { "mail": "failed", "error": error })
           collection.updateOne(
             { "_id": data._id },
-            { $push: { log: { "status": "failed", "errors": error , "updated": new Date() } } })
+            { $push: { log: { "status": "failed", "errors": error, "updated": new Date() } } })
 
         } else {
           let mail = {
