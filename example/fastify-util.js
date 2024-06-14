@@ -120,15 +120,28 @@ export default class fastifyUtil {
     });
 
    if (!fs.existsSync(this.upload))  fs.mkdirSync(this.upload, 0o744);
-
-    
-    await fastify.register(import('@fastify/static'), {
+  
+   await fastify.register((instance, opts, next) => {
+    instance.register(import('@fastify/static'), {
       root: this.upload,
-      prefix: '/upload/', // optional: default '/'
+      prefix: '/upload/' ,  
       index: false,
-      list: true
-    })
+      list: false
 
+    });
+    next()
+  })
+  // second static
+  await fastify.register((instance, opts, next) => {
+    instance.register(import('@fastify/static'), {
+      root: path.join(__dirname, 'template/en/formbuilder'),
+      prefix: '/FB/',
+      index: ['index.html'],
+      list: false,
+    })
+    next()
+  });
+  
 
     await fastify.register(import('@fastify/multipart'), {
       fieldNameSize: 100, // Max field name size in bytes
