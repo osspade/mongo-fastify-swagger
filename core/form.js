@@ -12,7 +12,7 @@ export default class form {
   routes(util, _collection) {
 
     const collection = util.db.collection(_collection);
-
+  
     util.fastify.route({
       method: 'GET',
       url: `/${_collection}`,

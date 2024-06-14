@@ -304,22 +304,40 @@
       return (
         createElement('div', { className: 'form-list p-4 bg-white rounded-lg shadow-md overflow-y-auto h-full', ref: listRef, onScroll: handleScroll },
           createElement('label', { className: 'formbuilder-text-label' }, 'Forms'),
-          createElement('ul', { className: 'space-y-4' },
-            forms.map(form => (
-              createElement('li', { key: form._id, className: `space-y-2 ${form._id === setActiveFormId ? 'bg-gray-200' : ''}` },
-                createElement('div', { className: 'text-gray-700 font-semibold' }, form.title),
-                createElement('div', { className: 'flex space-x-2' },
-                  createElement('button', {
-                    className: 'bg-blue-500 text-white p-2 rounded',
-                    onClick: () => {
-                      setActiveTab('updateEdit');
-                      setActiveFormId(form._id);
-                      setFormTitle(form.title);
-                    }
-                  }, 'Edit/Render')
-                )
+          createElement('table', { className: 'min-w-full table-auto' },
+            createElement('thead', { className: 'bg-gray-200' },
+              createElement('tr', null,
+                createElement('th', { className: 'px-4 py-2' }, '#'),
+                createElement('th', { className: 'px-4 py-2' }, 'Form Title'),
+                createElement('th', { className: 'px-4 py-2' }, 'Actions')
               )
-            ))
+            ),
+            createElement('tbody', null,
+              forms.map((form, index) => (
+                createElement('tr', {
+                  key: form._id,
+                  className: `cursor-pointer ${form._id === setActiveFormId ? 'bg-gray-300' : 'bg-white hover:bg-gray-100'}`,
+                  onClick: () => {
+                    setActiveTab('updateEdit');
+                    setActiveFormId(form._id);
+                    setFormTitle(form.title);
+                  }
+                },
+                  createElement('td', { className: 'border px-4 py-2' }, index + 1),
+                  createElement('td', { className: 'border px-4 py-2' }, form.title),
+                  createElement('td', { className: 'border px-4 py-2' },
+                    createElement('button', {
+                      className: 'bg-blue-500 text-white p-2 rounded',
+                      onClick: () => {
+                        setActiveTab('updateEdit');
+                        setActiveFormId(form._id);
+                        setFormTitle(form.title);
+                      }
+                    }, 'Edit/Render')
+                  )
+                )
+              ))
+            )
           )
         )
       );
@@ -365,12 +383,22 @@
         setPage(1);
       };
 
+      const handleLogout = () => {
+        utility.setAuthKey('');
+        setAuthKey('');
+        localStorage.removeItem('authkey');
+      };
+
       if (!authKey) {
         return createElement(LoginScreen, { onLogin: handleLogin });
       }
 
       return (
-        createElement('div', { className: 'flex space-x-4 h-screen' },
+        createElement('div', { className: 'relative flex space-x-4 h-screen' },
+          createElement('button', {
+            className: 'absolute top-4 right-4 bg-red-500 text-white p-2 rounded',
+            onClick: handleLogout
+          }, 'Logout'),
           createElement('div', { className: 'w-1/4 h-full' },
             createElement(FormsList, { forms, setActiveTab, setActiveFormId, fetchForms, page, setPage, hasMore, setFormTitle })
           ),
@@ -392,4 +420,3 @@
   </script>
 </body>
 </html>
-       
