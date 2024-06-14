@@ -152,13 +152,33 @@ export default class common {
 
         }
 
+        util.fastify.route({
+            method: 'GET',
+            url: `/${_collection}/all`,
+            schema: {
+              tags: [_collection],
+              description: `Get All ${_collection}`,
+              security: [{ apiauth: [] }],
+            },
+            preHandler: util.fastify.auth([util.fastify.authenticate]),
+            handler: async function (request, reply) {
+      
+              new events().log(util, {
+                'url': `/${_collection}/all`,
+                'account$account': { _id: new util.fastify.mongo.ObjectId(request.auth._id) },
+              })
+      
+              reply.status(200).send(await collection.find({},{ projection: { _id:1, profile: 1 } }).toArray());
+            }
+          })
+      
 
         util.fastify.route({
             method: 'GET',
             url: `/${_collection}/:id`,
             schema: {
                 tags: [_collection],
-                description: 'Get ID',
+                description: `Get ${_collection} ID`,
                 security: [{ apiauth: [] }],
             },
             preHandler: util.fastify.auth([util.fastify.authenticate]),
@@ -170,7 +190,7 @@ export default class common {
             url: `/${_collection}/:id/:property`,
             schema: {
                 tags: [_collection],
-                description: 'Get ID Property (with "." property poplate)',
+                description: 'Get ID Property (with "." property populate)',
                 security: [{ apiauth: [] }],
             },
             preHandler: util.fastify.auth([util.fastify.authenticate]),

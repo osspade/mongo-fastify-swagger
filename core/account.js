@@ -15,8 +15,6 @@ export default class account {
     const collection = util.db.collection(_collection);
     const template_dir = "./template"
 
-
-
     util.fastify.route({
       method: 'PUT',
       url: `/${_collection}/create`,
