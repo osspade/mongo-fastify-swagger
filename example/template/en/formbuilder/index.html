@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FormBuilder App</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/rateYo/2.3.2/jquery.rateyo.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.css">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+  <div id="root" class="container mx-auto py-4"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/17.0.2/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.2/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-hook-form@7.51.5/dist/index.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/rateYo/2.3.2/jquery.rateyo.min.js"></script>
+  <script src="https://formbuilder.online/assets/js/form-builder.min.js"></script>
+  <script src="https://formbuilder.online/assets/js/form-render.min.js"></script>
+
+  <script>
+    const { useState, useEffect, useRef, createElement } = React;
+    const { useForm, Controller } = ReactHookForm;
+
+    const utility = {
+      authKey: localStorage.getItem('authkey') || '',
+      customFields: [
+        { label: 'Signature', attrs: { type: 'signature' }, icon: '✒️' },
+        { label: 'Rating', attrs: { type: 'rating' }, icon: '🌟' }
+      ],
+      customTemplates: {
+        signature: function(fieldData) {
+          return {
+            field: `<div><input class="form-control" value="${fieldData.value || ''}" id="${fieldData.id}" name="${fieldData.name}" type="hidden" /> <canvas style="padding:5px;outline: black 3px solid;" id="_${fieldData.id}"></canvas></div>`,
+            onRender: function() {
+              const signaturePad = new SignaturePad(document.getElementById(`_${fieldData.name}`));
+              if (fieldData.userData) signaturePad.fromData(JSON.parse(fieldData.userData));
+              signaturePad.addEventListener('endStroke', () => {
+                document.getElementById(fieldData.name).setAttribute('value', JSON.stringify(signaturePad.toData()));
+              });
+            }
+          };
+        },
+        rating: function(fieldData) {
+          return {
+            field: `<div><input class="form-control" value="${fieldData.value || ''}" id="${fieldData.id}" name="${fieldData.name}" type="hidden" /> <span id="_${fieldData.id}"></span></div>`,
+            onRender: function() {
+              const rate = $(document.getElementById(`_${fieldData.name}`)).rateYo(fieldData.userData ? JSON.parse(fieldData.userData) : {});
+              rate.on('rateyo.set', (e, data) => {
+                document.getElementById(fieldData.name).setAttribute('value', JSON.stringify(data));
+              });
+            }
+          };
+        }
+      },
+      setAuthKey: function(key) {
+        localStorage.setItem('authkey', key);
+        this.authKey = key;
+      },
+      getAuthHeaders: function() {
+        return { Authorization: `Bearer ${this.authKey}` };
+      }
+    };
+
+    const fetchForms = async (page, setForms, setHasMore) => {
+      const forms = await $.ajax({
+        url: `http://localhost:5000/form?page=${page}&limit=10`,
+        type: 'GET',
+        contentType: 'application/json',
+        headers: utility.getAuthHeaders()
+      });
+      setForms(prevForms => [...prevForms, ...forms]);
+      setHasMore(forms.length > 0);
+    };
+
+    const Tab = ({ label, onClick, isActive }) => (
+      createElement('div', {
+        className: `tab ${isActive ? 'active' : ''} cursor-pointer p-2 border-b-2 ${isActive ? 'border-blue-500' : 'border-transparent'} hover:bg-gray-200`,
+        onClick
+      }, label)
+    );
+
+    const TabContent = ({ isActive, children, title }) => (
+      isActive ? createElement('div', { className: 'tab-content p-4 border border-gray-300 bg-white rounded-lg shadow-md' },
+        createElement('h3', { className: 'text-lg font-semibold mb-4' }, title),
+        children
+      ) : null
+    );
+
+    const FormBuilderCreate = ({ fetchForms }) => {
+      const { control, handleSubmit, setValue } = useForm();
+      const fbInstance = useRef(null);
+
+      useEffect(() => {
+        if (!fbInstance.current) {
+          const options = {
+            formData: {},
+            fields: utility.customFields,
+            templates: utility.customTemplates,
+            onSave: function(evt, formData) {
+              const title = document.getElementById('user-content-title').value;
+              if (!title || !utility.authKey) {
+                alert('Missing title/authkey');
+                return false;
+              }
+
+              $.ajax({
+                url: 'http://localhost:5000/form/create',
+                type: 'PUT',
+                contentType: 'application/json',
+                headers: utility.getAuthHeaders(),
+                data: JSON.stringify({ title: title, data: { form: formData } }),
+                success: function(result) {
+                  fbInstance.current.actions.clearFields();
+                  document.getElementById('user-content-title').value = '';
+                  alert(JSON.stringify(result));
+                  fetchForms();
+                }
+              });
+            }
+          };
+
+          fbInstance.current = $('#fb-editor-create').formBuilder(options);
+          fetchForms();
+        }
+      }, []);
+
+      return (
+        createElement('div', null,
+          createElement('form', { onSubmit: handleSubmit((data) => { }) },
+            createElement('div', { className: 'mb-4' },
+              createElement('label', { htmlFor: 'user-content-title', className: 'formbuilder-text-label' }, 'Title'),
+              createElement(Controller, {
+                name: 'title',
+                control: control,
+                render: ({ field }) => createElement('input', Object.assign({ type: 'text', id: 'user-content-title', className: 'border p-2 w-full' }, field))
+              })
+            ),
+            createElement('button', { type: 'submit', className: 'bg-blue-500 text-white p-2 rounded' }, 'Save')
+          ),
+          createElement('div', { id: 'fb-editor-create', className: 'mt-4' })
+        )
+      );
+    };
+
+    const FormBuilderUpdateEdit = ({ formId, fetchForms, formTitle }) => {
+      const fbInstance = useRef(null);
+
+      useEffect(() => {
+        if (!fbInstance.current) {
+          const options = {
+            formData: {}, // Populate this with form data for the form being edited
+            fields: utility.customFields,
+            templates: utility.customTemplates,
+            onSave: function(evt, formData) {
+              $.ajax({
+                url: `http://localhost:5000/form/update/${formId}`, // Update with the actual endpoint
+                type: 'PUT',
+                contentType: 'application/json',
+                headers: utility.getAuthHeaders(),
+                data: JSON.stringify({ title: formTitle, data: { form: formData } }), // Add the correct title
+                success: function(result) {
+                  alert('Form Saved!');
+                  fetchForms();
+                }
+              });
+            }
+          };
+
+          fbInstance.current = $('#fb-editor-update').formBuilder(options);
+        }
+
+        const fetchFormData = async () => {
+          const formData = await $.ajax({
+            url: `http://localhost:5000/form/${formId}`, // Fetch the form data
+            type: 'GET',
+            contentType: 'application/json',
+            headers: utility.getAuthHeaders()
+          });
+          fbInstance.current.actions.setData(formData.data.form);
+        };
+
+        fetchFormData();
+      }, [formId]);
+
+      return (
+        createElement('div', null,
+          createElement('div', { id: 'fb-editor-update', className: 'mt-4' })
+        )
+      );
+    };
+
+    const FormBuilderRender = ({ formId, formTitle }) => {
+      const fbInstance = useRef(null);
+      const [responses, setResponses] = useState([]);
+      const [selectedResponse, setSelectedResponse] = useState(null);
+
+      useEffect(() => {
+        const formRenderOptions = {
+          fields: utility.customFields,
+          templates: utility.customTemplates,
+          formData: {} // This will be updated with the form data to be rendered
+        };
+
+        if (!fbInstance.current) {
+          fbInstance.current = $('#fb-render').formRender(formRenderOptions);
+        }
+
+        const fetchFormData = async () => {
+          const formData = await $.ajax({
+            url: `http://localhost:5000/form/${formId}`, // Fetch the form data
+            type: 'GET',
+            contentType: 'application/json',
+            headers: utility.getAuthHeaders()
+          });
+          fbInstance.current = $('#fb-render').formRender({
+            fields: utility.customFields,
+            templates: utility.customTemplates,
+            formData: formData.data.form // This will be updated with the form data to be rendered
+          });
+        };
+
+        const fetchResponses = async () => {
+          const response = await $.ajax({
+            url: `http://localhost:5000/form/${formId}/response`, // Fetch form responses
+            type: 'GET',
+            contentType: 'application/json',
+            headers: utility.getAuthHeaders()
+          });
+          setResponses(response);
+        };
+
+        fetchFormData();
+        fetchResponses();
+
+        const handleSave = async () => {
+          const userData = {}; // Populate this with the user data from the form
+          await $.ajax({
+            url: `http://localhost:5000/form/${formId}/response`, // Save form response
+            type: 'PUT',
+            contentType: 'application/json',
+            headers: utility.getAuthHeaders(),
+            data: JSON.stringify({ response: { data: userData, created: new Date() } }),
+            success: function(result) {
+              alert('Form Response Saved!');
+              fetchResponses();
+            }
+          });
+        };
+
+        document.getElementById('save').onclick = handleSave;
+      }, [formId]);
+
+      useEffect(() => {
+        if (selectedResponse) {
+          fbInstance.current = $('#fb-render').formRender({
+            fields: utility.customFields,
+            templates: utility.customTemplates,
+            formData: selectedResponse.data ? selectedResponse.data : selectedResponse // This will render the selected response data
+          });
+        }
+      }, [selectedResponse]);
+
+      return (
+        createElement('div', null,
+          createElement('div', { id: 'savedresponses', className: 'overflow-auto h-40' },
+            createElement('label', { className: 'formbuilder-text-label' }, 'Saved Responses'),
+            createElement('select', {
+              className: 'w-full p-2 border rounded',
+              onChange: (e) => {
+                setSelectedResponse(JSON.parse(e.target.value));
+              }
+            },
+              createElement('option', { value: '' }, 'Select a response'),
+              (responses.response ? responses.response : []).map((response, index) => 
+                createElement('option', { key: index, value: JSON.stringify(response) }, `${response.title} | ${response._id}`)
+              )
+            )
+          ),
+          createElement('div', { id: 'fb-render', className: 'mt-4' }),
+          createElement('button', { id: 'save', className: 'bg-blue-500 text-white p-2 rounded mt-4' }, 'Save Form Response Data')
+        )
+      );
+    };
+
+    const FormsList = ({ forms, setActiveTab, setActiveFormId, fetchForms, page, setPage, hasMore, setFormTitle }) => {
+      const listRef = useRef();
+
+      const handleScroll = () => {
+        if (listRef.current) {
+          const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+          if (scrollTop + clientHeight >= scrollHeight && hasMore) {
+            setPage(prevPage => prevPage + 1);
+          }
+        }
+      };
+
+      useEffect(() => {
+        fetchForms(page);
+      }, [page]);
+
+      return (
+        createElement('div', { className: 'form-list p-4 bg-white rounded-lg shadow-md overflow-y-auto h-full', ref: listRef, onScroll: handleScroll },
+          createElement('label', { className: 'formbuilder-text-label' }, 'Forms'),
+          createElement('ul', { className: 'space-y-4' },
+            forms.map(form => (
+              createElement('li', { key: form._id, className: `space-y-2 ${form._id === setActiveFormId ? 'bg-gray-200' : ''}` },
+                createElement('div', { className: 'text-gray-700 font-semibold' }, form.title),
+                createElement('div', { className: 'flex space-x-2' },
+                  createElement('button', {
+                    className: 'bg-blue-500 text-white p-2 rounded',
+                    onClick: () => {
+                      setActiveTab('updateEdit');
+                      setActiveFormId(form._id);
+                      setFormTitle(form.title);
+                    }
+                  }, 'Edit/Render')
+                )
+              )
+            ))
+          )
+        )
+      );
+    };
+
+    const LoginScreen = ({ onLogin }) => {
+      const handleLogin = (e) => {
+        e.preventDefault();
+        const authKey = e.target.elements.authkey.value;
+        onLogin(authKey);
+      };
+
+      return (
+        createElement('div', { className: 'login-screen flex justify-center items-center h-screen' },
+          createElement('form', { className: 'login-form bg-white p-6 rounded-lg shadow-md', onSubmit: handleLogin },
+            createElement('label', { htmlFor: 'authkey', className: 'formbuilder-text-label' }, 'Enter Auth Key'),
+            createElement('input', { type: 'text', id: 'authkey', name: 'authkey', className: 'border p-2 w-full mb-4' }),
+            createElement('button', { type: 'submit', className: 'bg-blue-500 text-white p-2 rounded' }, 'Login')
+          )
+        )
+      );
+    };
+
+    const App = () => {
+      const [authKey, setAuthKey] = useState(utility.authKey);
+      const [forms, setForms] = useState([]);
+      const [activeTab, setActiveTab] = useState('create');
+      const [activeFormId, setActiveFormId] = useState(null);
+      const [formTitle, setFormTitle] = useState('');
+      const [page, setPage] = useState(1);
+      const [hasMore, setHasMore] = useState(true);
+
+      useEffect(() => {
+        if (authKey) {
+          fetchForms(page, setForms, setHasMore);
+        }
+      }, [authKey, page]);
+
+      const handleLogin = (authKey) => {
+        setAuthKey(authKey);
+        utility.setAuthKey(authKey);
+        fetchForms(1, setForms, setHasMore);
+        setPage(1);
+      };
+
+      if (!authKey) {
+        return createElement(LoginScreen, { onLogin: handleLogin });
+      }
+
+      return (
+        createElement('div', { className: 'flex space-x-4 h-screen' },
+          createElement('div', { className: 'w-1/4 h-full' },
+            createElement(FormsList, { forms, setActiveTab, setActiveFormId, fetchForms, page, setPage, hasMore, setFormTitle })
+          ),
+          createElement('div', { className: 'w-3/4' },
+            createElement('div', { className: 'tabs flex justify-around mb-4' },
+              createElement(Tab, { label: 'Create', onClick: () => setActiveTab('create'), isActive: activeTab === 'create' }),
+              createElement(Tab, { label: 'Update/Edit', onClick: () => setActiveTab('updateEdit'), isActive: activeTab === 'updateEdit' }),
+              createElement(Tab, { label: 'Render', onClick: () => setActiveTab('render'), isActive: activeTab === 'render' })
+            ),
+            createElement(TabContent, { isActive: activeTab === 'create', title: 'Create Form' }, createElement(FormBuilderCreate, { fetchForms: () => fetchForms(page, setForms, setHasMore) })),
+            createElement(TabContent, { isActive: activeTab === 'updateEdit', title: formTitle }, activeFormId && createElement(FormBuilderUpdateEdit, { formId: activeFormId, fetchForms: () => fetchForms(page, setForms, setHasMore), formTitle })),
+            createElement(TabContent, { isActive: activeTab === 'render', title: formTitle }, activeFormId && createElement(FormBuilderRender, { formId: activeFormId, formTitle }))
+          )
+        )
+      );
+    };
+
+    ReactDOM.render(createElement(App), document.getElementById('root'));
+  </script>
+</body>
+</html>
+       

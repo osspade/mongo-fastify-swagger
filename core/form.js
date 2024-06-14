@@ -12,62 +12,6 @@ export default class form {
   routes(util, _collection) {
 
     const collection = util.db.collection(_collection);
-    const template_dir = "./template"
-
-    util.fastify.route({
-      method: 'GET',
-      url: `/${_collection}builder`,
-      schema: {
-        tags: [`${_collection} builder`],
-        description: `${_collection} builder`,
-      },
-      handler: async function (request, reply) {
-
-        return reply.view(`${template_dir}/en/${_collection}builder/builder.html`, { "data": { "form": [] }, "authorization": request.headers.authorization });
-
-      }
-    })
-
-    util.fastify.route({
-      method: 'GET',
-      url: `/${_collection}builder/:formid`,
-      schema: {
-        tags: [`${_collection} builder`],
-        description: `Update/Edit ${_collection}`,
-      },
-      handler: async function (request, reply) {
-
-        const { formid } = request.params;
-
-        return collection.findOne({ "_id": new util.fastify.mongo.ObjectId(formid) }).then(async result => {
-          if (result) {
-           return reply.view(`${template_dir}/en/${_collection}builder/update-edit.html`, { ...result, "authorization": request.headers.authorization });
-          }
-        })
-
-      }
-    })
-
-    util.fastify.route({
-      method: 'GET',
-      url: `/${_collection}builder/render/:formid/:responseid`,
-      schema: {
-        tags: [`${_collection} builder`],
-        description: `Render ${_collection}`,
-      },
-      handler: async function (request, reply) {
-
-        const { formid, responseid } = request.params;
-
-        return collection.findOne({ "_id": new util.fastify.mongo.ObjectId(formid) }).then(async result => {
-          if (result) {
-           return  reply.view(`${template_dir}/en/${_collection}builder/form.html`, { ...result, "authorization": request.headers.authorization, "responseid": responseid });
-          }
-        })
-
-      }
-    })
-
 
     util.fastify.route({
       method: 'GET',
