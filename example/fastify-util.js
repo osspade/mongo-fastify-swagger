@@ -134,8 +134,8 @@ export default class fastifyUtil {
   // second static
   await fastify.register((instance, opts, next) => {
     instance.register(import('@fastify/static'), {
-      root: path.join(__dirname, 'template/en/formbuilder'),
-      prefix: '/FB/',
+      root: path.join(__dirname, 'dashboard/'),
+      prefix: '/dashboard/',
       index: ['index.html'],
       list: false,
     })

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uploads Management App</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const apiBaseUrl = 'http://localhost:5000'; // Replace with your API base URL
+
+        const App = () => {
+            const [uploads, setUploads] = useState([]);
+            const [selectedUpload, setSelectedUpload] = useState(null);
+            const [previewContent, setPreviewContent] = useState(null);
+            const [title, setTitle] = useState('');
+            const [notes, setNotes] = useState('');
+            const [selectedFile, setSelectedFile] = useState(null);
+
+            useEffect(() => {
+                fetchUploads();
+            }, []);
+
+            const fetchUploads = async () => {
+                try {
+                    const response = await fetch(`${apiBaseUrl}/upload/all`, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                    });
+                    const data = await response.json();
+                    setUploads(data);
+                } catch (err) {
+                    console.error('Failed to fetch uploads', err);
+                }
+            };
+
+            const handleDelete = async (id) => {
+                try {
+                    await fetch(`${apiBaseUrl}/upload/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                    });
+                    fetchUploads();
+                } catch (err) {
+                    console.error('Failed to delete upload', err);
+                }
+            };
+
+            const handleFileChange = (e) => {
+                setSelectedFile(e.target.files[0]);
+            };
+
+            const handleUpload = async (e) => {
+                e.preventDefault();
+                if (!selectedFile) return;
+
+                const formData = new FormData();
+                formData.append('files', selectedFile);
+                formData.append('title', title);
+                formData.append('notes', notes);
+
+                try {
+                    await fetch(`${apiBaseUrl}/upload`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                        body: formData,
+                    });
+                    fetchUploads();
+                    setSelectedFile(null);
+                    setTitle('');
+                    setNotes('');
+                } catch (err) {
+                    console.error('Failed to upload file', err);
+                }
+            };
+
+            const handlePreview = async (id) => {
+                try {
+                    const response = await fetch(`${apiBaseUrl}/upload/${id}`, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                    });
+                    const data = await response.json();
+                    setSelectedUpload(data);
+
+                    if (data.files[0].filename.endsWith('.txt')) {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            setPreviewContent(reader.result);
+                        };
+                        reader.readAsText(data.files[0]);
+                    } else if (data.files[0].filename.match(/\.(jpg|jpeg|png|gif)$/)) {
+                        setPreviewContent(`${apiBaseUrl}/${data.files[0].path}/${data.files[0].filename}`);
+                    } else {
+                        setPreviewContent('File preview not supported');
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch upload details', err);
+                }
+            };
+
+            return (
+                <div className="container mx-auto mt-10">
+                    <h1 className="text-3xl font-bold mb-4">Uploads Management</h1>
+                    <form onSubmit={handleUpload} className="mb-4">
+                        <div className="mb-4">
+                            <label className="block text-gray-700">Title</label>
+                            <input
+                                type="text"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                className="block w-full p-2 border border-gray-300 rounded"
+                                required
+                            />
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-gray-700">Notes</label>
+                            <textarea
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                className="block w-full p-2 border border-gray-300 rounded"
+                                required
+                            ></textarea>
+                        </div>
+                        <input type="file" onChange={handleFileChange} className="block w-full mb-2" />
+                        <button type="submit" className="bg-blue-500 text-white py-2 px-4 rounded">Upload</button>
+                    </form>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <table className="min-w-full bg-white rounded-lg shadow-md">
+                            <thead>
+                                <tr>
+                                    <th className="py-2 px-4 border-b">ID</th>
+                                    <th className="py-2 px-4 border-b">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {uploads.map((upload) => (
+                                    <tr key={upload._id}>
+                                        <td className="py-2 px-4 border-b">{upload._id}</td>
+                                        <td className="py-2 px-4 border-b">
+                                            <button onClick={() => handlePreview(upload._id)} className="mr-2 bg-green-500 text-white py-1 px-3 rounded">Preview</button>
+                                            <button onClick={() => handleDelete(upload._id)} className="bg-red-500 text-white py-1 px-3 rounded">Delete</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {selectedUpload && (
+                            <div className="mt-4 p-4 bg-white rounded-lg shadow-md col-span-3">
+                                <h2 className="text-xl font-bold mb-4">Preview</h2>
+                                <div>
+                                    <h3 className="text-lg font-bold">Title: {selectedUpload.title}</h3>
+                                    <p><strong>Notes:</strong> {selectedUpload.notes}</p>
+                                    <p><strong>Filename:</strong> {selectedUpload.files[0].filename}</p>
+                                    <p><strong>Uploaded by:</strong> {selectedUpload.account$account.profile.firstname} {selectedUpload.account$account.profile.lastname}</p>
+                                    <div className="mt-4">
+                                        {selectedUpload.files[0].filename.match(/\.(jpg|jpeg|png|gif)$/) ? (
+                                            <img src={previewContent} alt="Preview" className="w-full" />
+                                        ) : selectedUpload.files[0].filename.endsWith('.txt') ? (
+                                            <pre>{previewContent}</pre>
+                                        ) : (
+                                            <p>{previewContent}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

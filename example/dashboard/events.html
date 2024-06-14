@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Events Management App</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const apiBaseUrl = 'http://localhost:5000'; // Replace with your API base URL
+
+        const App = () => {
+            const [events, setEvents] = useState([]);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [filteredEvents, setFilteredEvents] = useState([]);
+            const [selectedEvent, setSelectedEvent] = useState(null);
+
+            useEffect(() => {
+                fetchEvents();
+            }, []);
+
+            useEffect(() => {
+                filterEvents();
+            }, [searchTerm, events]);
+
+            const fetchEvents = async () => {
+                try {
+                    const response = await fetch(`${apiBaseUrl}/events/all`, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                    });
+                    const data = await response.json();
+                    setEvents(data);
+                } catch (err) {
+                    console.error('Failed to fetch events', err);
+                }
+            };
+
+            const filterEvents = () => {
+                const filtered = events.filter(event =>
+                    Object.values(event).some(value =>
+                        String(value).toLowerCase().includes(searchTerm.toLowerCase())
+                    )
+                );
+                setFilteredEvents(filtered);
+            };
+
+            const handleEventClick = async (id) => {
+                try {
+                    const response = await fetch(`${apiBaseUrl}/events/${id}`, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                    });
+                    const data = await response.json();
+                    setSelectedEvent(data);
+                } catch (err) {
+                    console.error('Failed to fetch event details', err);
+                }
+            };
+
+            return (
+                <div className="container mx-auto mt-10">
+                    <h1 className="text-3xl font-bold mb-4">Events Management Dashboard</h1>
+                    <input
+                        type="text"
+                        placeholder="Search events..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="block w-full mb-4 p-2 border border-gray-300 rounded"
+                    />
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        <div className="col-span-2">
+                            <table className="min-w-full bg-white rounded-lg shadow-md">
+                                <thead>
+                                    <tr>
+                                        <th className="py-2 px-4 border-b">Event Type</th>
+                                        <th className="py-2 px-4 border-b">Details</th>
+                                        <th className="py-2 px-4 border-b">Timestamp</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredEvents.map((event) => (
+                                        <tr key={event._id} onClick={() => handleEventClick(event._id)} className="cursor-pointer hover:bg-gray-200">
+                                            <td className="py-2 px-4 border-b">
+                                                {event.email ? 'Email' : event.notification ? 'Notification' : 'Default'}
+                                            </td>
+                                            <td className="py-2 px-4 border-b">{event.details}</td>
+                                            <td className="py-2 px-4 border-b">{new Date(event.timestamp).toLocaleString()}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {selectedEvent && (
+                            <div className="col-span-1 p-4 bg-white rounded-lg shadow-md">
+                                <h2 className="text-xl font-bold mb-4">Event Details</h2>
+                                <p><strong>ID:</strong> {selectedEvent._id}</p>
+                                <p><strong>URL:</strong> {selectedEvent.details.url}</p>
+                                <p><strong>Email:</strong> {selectedEvent.details.email}</p>
+                                <p><strong>Message:</strong> {selectedEvent.details.message}</p>
+                                <p><strong>Created:</strong> {new Date(selectedEvent.created).toLocaleString()}</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

@@ -1,0 +1,249 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Management App</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const apiBaseUrl = 'http://localhost:5000'; // Replace with your API base URL
+
+        const App = () => {
+            const [authKey, setAuthKey] = useState(localStorage.getItem('authKey'));
+            const [view, setView] = useState(authKey ? 'account' : 'login');
+
+            const handleLogin = (key) => {
+                localStorage.setItem('authKey', key);
+                setAuthKey(key);
+                setView('account');
+            };
+
+            const handleLogout = () => {
+                localStorage.removeItem('authKey');
+                setAuthKey(null);
+                setView('login');
+            };
+
+            return (
+                <div className="container mx-auto mt-10">
+                    {view === 'login' && <Login onLogin={handleLogin} />}
+                    {view === 'account' && <AccountManagement authKey={authKey} onLogout={handleLogout} />}
+                </div>
+            );
+        };
+
+        const Login = ({ onLogin }) => {
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState(null);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                try {
+                    const response = await fetch(`${apiBaseUrl}/account/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password }),
+                    });
+                    const data = await response.json();
+                    if (data.authkey) {
+                        onLogin(data.authkey);
+                    } else {
+                        setError('Invalid login credentials');
+                    }
+                } catch (err) {
+                    setError('An error occurred');
+                }
+            };
+
+            return (
+                <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
+                    <h2 className="text-2xl font-bold mb-4">Login</h2>
+                    {error && <p className="text-red-500 mb-4">{error}</p>}
+                    <form onSubmit={handleSubmit}>
+                        <div className="mb-4">
+                            <label className="block text-gray-700">Email</label>
+                            <input
+                                type="email"
+                                className="w-full p-2 border border-gray-300 rounded"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-gray-700">Password</label>
+                            <input
+                                type="password"
+                                className="w-full p-2 border border-gray-300 rounded"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <button type="submit" className="w-full bg-blue-500 text-white py-2 rounded">Login</button>
+                    </form>
+                </div>
+            );
+        };
+
+        const AccountManagement = ({ authKey, onLogout }) => {
+            const [accounts, setAccounts] = useState([]);
+            const [selectedAccount, setSelectedAccount] = useState(null);
+            const [error, setError] = useState(null);
+
+            useEffect(() => {
+                fetchAccounts();
+            }, []);
+
+            const fetchAccounts = async () => {
+                try {
+                    const response = await fetch(`${apiBaseUrl}/account/all`, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${authKey}` },
+                    });
+                    const data = await response.json();
+                    setAccounts(data);
+                } catch (err) {
+                    setError('Failed to fetch accounts');
+                }
+            };
+
+            const handleDelete = async (id) => {
+                try {
+                    await fetch(`${apiBaseUrl}/account/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${authKey}` },
+                    });
+                    fetchAccounts();
+                } catch (err) {
+                    setError('Failed to delete account');
+                }
+            };
+
+            const handleEdit = (account) => {
+                setSelectedAccount(account);
+            };
+
+            const handleSave = async (account) => {
+                try {
+                    await fetch(`${apiBaseUrl}/account/${account._id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${authKey}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(account),
+                    });
+                    fetchAccounts();
+                    setSelectedAccount(null);
+                } catch (err) {
+                    setError('Failed to save account');
+                }
+            };
+
+            return (
+                <div>
+                    <button onClick={onLogout} className="mb-4 bg-red-500 text-white py-2 px-4 rounded">Logout</button>
+                    {error && <p className="text-red-500 mb-4">{error}</p>}
+                    <h2 className="text-2xl font-bold mb-4">Account Management</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {accounts.map((account) => (
+                            <div key={account._id} className="bg-white p-4 rounded-lg shadow-md">
+                                <h3 className="text-xl font-bold mb-2">{account.profile.firstname} {account.profile.lastname}</h3>
+                                <p>Email: {account.profile.email}</p>
+                                <p>Phone: {account.profile.phone}</p>
+                                <div className="mt-4">
+                                    <button onClick={() => handleEdit(account)} className="mr-2 bg-yellow-500 text-white py-1 px-3 rounded">Edit</button>
+                                    <button onClick={() => handleDelete(account._id)} className="bg-red-500 text-white py-1 px-3 rounded">Delete</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    {selectedAccount && (
+                        <AccountForm account={selectedAccount} onSave={handleSave} onCancel={() => setSelectedAccount(null)} />
+                    )}
+                </div>
+            );
+        };
+
+        const AccountForm = ({ account, onSave, onCancel }) => {
+            const [formData, setFormData] = useState({ ...account });
+
+            const handleChange = (e) => {
+                const { name, value } = e.target;
+                setFormData({ ...formData, [name]: value });
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onSave(formData);
+            };
+
+            return (
+                <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md mt-8">
+                    <h2 className="text-2xl font-bold mb-4">Edit Account</h2>
+                    <form onSubmit={handleSubmit}>
+                        <div className="mb-4">
+                            <label className="block text-gray-700">First Name</label>
+                            <input
+                                type="text"
+                                name="profile.firstname"
+                                className="w-full p-2 border border-gray-300 rounded"
+                                value={formData.profile.firstname}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-gray-700">Last Name</label>
+                            <input
+                                type="text"
+                                name="profile.lastname"
+                                className="w-full p-2 border border-gray-300 rounded"
+                                value={formData.profile.lastname}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-gray-700">Email</label>
+                            <input
+                                type="email"
+                                name="profile.email" className="w-full p-2 border border-gray-300 rounded"
+                                value={formData.profile.email}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-gray-700">Phone</label>
+                            <input
+                                type="tel"
+                                name="profile.phone"
+                                className="w-full p-2 border border-gray-300 rounded"
+                                value={formData.profile.phone}
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+                        <button type="submit" className="w-full bg-blue-500 text-white py-2 rounded">Save</button>
+                        <button type="button" onClick={onCancel} className="w-full bg-gray-500 text-white py-2 rounded mt-2">Cancel</button>
+                    </form>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
