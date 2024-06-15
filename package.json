@@ -1,4 +1,6 @@
 {
+  "name": "Mongo Fastify Wwagger",
+	"version": "0.0.1",
   "scripts": {
     "start": "node index.js",
     "js-sdk": "npx @openapitools/openapi-generator-cli generate -i http://localhost:5000/yaml  -g javascript -o ./client-sdk/js",
