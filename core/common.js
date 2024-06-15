@@ -168,7 +168,7 @@ export default class common {
                 'account$account': { _id: new util.fastify.mongo.ObjectId(request.auth._id) },
               })
       
-              reply.status(200).send(await collection.find({},{ projection: { _id:1, profile: 1 } }).toArray());
+              reply.status(200).send(await collection.find({},{ projection: { _id:1, title:1 ,created: 1 , profile: 1,details:1  } }).toArray());
             }
           })
       
