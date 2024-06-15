@@ -16,6 +16,28 @@
 
         const apiBaseUrl = 'http://localhost:5000'; // Replace with your API base URL
 
+        const TreeNode = ({ event, onEventClick, children }) => {
+            const [collapsed, setCollapsed] = useState(true);
+
+            return (
+                <div className="border-l pl-4">
+                    <div 
+                        onClick={() => setCollapsed(!collapsed)} 
+                        className="cursor-pointer flex items-center justify-between p-2 border rounded bg-gray-100 hover:bg-gray-200"
+                    >
+                        <span>{event._id}</span>
+                        <span>{event.details}</span>
+                        <span>{new Date(event.timestamp).toLocaleString()}</span>
+                    </div>
+                    {!collapsed && (
+                        <div className="ml-4">
+                            {children}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
         const App = () => {
             const [events, setEvents] = useState([]);
             const [searchTerm, setSearchTerm] = useState('');
@@ -77,26 +99,15 @@
                     />
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         <div className="col-span-2">
-                            <table className="min-w-full bg-white rounded-lg shadow-md">
-                                <thead>
-                                    <tr>
-                                        <th className="py-2 px-4 border-b">Event Type</th>
-                                        <th className="py-2 px-4 border-b">Details</th>
-                                        <th className="py-2 px-4 border-b">Timestamp</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredEvents.map((event) => (
-                                        <tr key={event._id} onClick={() => handleEventClick(event._id)} className="cursor-pointer hover:bg-gray-200">
-                                            <td className="py-2 px-4 border-b">
-                                                {event.email ? 'Email' : event.notification ? 'Notification' : 'Default'}
-                                            </td>
-                                            <td className="py-2 px-4 border-b">{event.details}</td>
-                                            <td className="py-2 px-4 border-b">{new Date(event.timestamp).toLocaleString()}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                            <div>
+                                {filteredEvents.map((event) => (
+                                    <TreeNode key={event._id} event={event} onEventClick={() => handleEventClick(event._id)}>
+                                        {event.children && event.children.map(childEvent => (
+                                            <TreeNode key={childEvent._id} event={childEvent} onEventClick={() => handleEventClick(childEvent._id)} />
+                                        ))}
+                                    </TreeNode>
+                                ))}
+                            </div>
                         </div>
                         {selectedEvent && (
                             <div className="col-span-1 p-4 bg-white rounded-lg shadow-md">

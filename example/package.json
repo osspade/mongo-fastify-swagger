@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "install":"pnpm i --shamefully-flatten",
     "start": "node index.js",
     "js-sdk": "npx @openapitools/openapi-generator-cli generate -i http://localhost:5000/yaml  -g javascript -o ./client-sdk/js",
     "ts-sdk": "npx @openapitools/openapi-generator-cli generate -i http://localhost:5000/yaml  -g typescript-axios -o ./client-sdk/ts",

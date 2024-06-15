@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-commerce Management App</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const apiBaseUrl = 'http://localhost:5000'; // Default API base URL
+
+        const App = () => {
+            const [page, setPage] = useState('products');
+
+            return (
+                <div className="container mx-auto mt-10">
+                    <h1 className="text-3xl font-bold mb-4">E-commerce Management Dashboard</h1>
+                    <nav className="mb-4">
+                        <button onClick={() => setPage('products')} className={`mr-4 py-2 px-4 rounded ${page === 'products' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}>Products</button>
+                        <button onClick={() => setPage('orders')} className={`py-2 px-4 rounded ${page === 'orders' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}>Orders</button>
+                    </nav>
+                    {page === 'products' ? <ProductManagement /> : <OrderManagement />}
+                </div>
+            );
+        };
+
+        const Modal = ({ show, onClose, children }) => {
+            if (!show) return null;
+
+            return (
+                <div className="fixed z-10 inset-0 overflow-y-auto">
+                    <div className="flex items-center justify-center min-h-screen">
+                        <div className="fixed inset-0 bg-gray-600 bg-opacity-75"></div>
+                        <div className="bg-white rounded-lg overflow-hidden shadow-xl transform transition-all sm:max-w-lg sm:w-full">
+                            <div className="p-4">
+                                {children}
+                                <button onClick={onClose} className="mt-4 bg-red-500 text-white py-2 px-4 rounded">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const TreeView = ({ data, label }) => {
+            const [collapsed, setCollapsed] = useState(true);
+            return (
+                <div className="mb-2">
+                    <div
+                        onClick={() => setCollapsed(!collapsed)}
+                        className="cursor-pointer bg-gray-200 p-2 rounded"
+                    >
+                        {label}
+                    </div>
+                    {!collapsed && (
+                        <div className="ml-4">
+                            {Object.keys(data).map((key) => (
+                                <div key={key}>
+                                    <strong>{key}:</strong> {typeof data[key] === 'object' ? <TreeView data={data[key]} label={key} /> : data[key]}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const ProductManagement = () => {
+            const [products, setProducts] = useState([]);
+            const [selectedProduct, setSelectedProduct] = useState(null);
+            const [productForm, setProductForm] = useState({
+                enTitle: '', enDescription: '', frTitle: '', frDescription: '', total: '', subscription: {}, upload: []
+            });
+            const [file, setFile] = useState(null);
+            const [fileTitle, setFileTitle] = useState('');
+            const [fileNotes, setFileNotes] = useState('');
+            const [showModal, setShowModal] = useState(false);
+
+            useEffect(() => {
+                fetchProducts();
+            }, []);
+
+            const fetchProducts = async () => {
+                try {
+                    const response = await fetch(`${apiBaseUrl}/product/all`, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                    });
+                    const data = await response.json();
+                    setProducts(Array.isArray(data) ? data : []);
+                } catch (err) {
+                    console.error('Failed to fetch products', err);
+                }
+            };
+
+            const fetchProductDetails = async (id) => {
+                try {
+                    const response = await fetch(`${apiBaseUrl}/product/${id}`, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                    });
+                    const data = await response.json();
+                    setSelectedProduct(data);
+                    setProductForm({
+                        enTitle: data.en.title,
+                        enDescription: data.en.description,
+                        frTitle: data.fr.title,
+                        frDescription: data.fr.description,
+                        total: data.total,
+                        subscription: data.subscription,
+                        ["upload$upload"]: data["upload$upload"]
+                    });
+                } catch (err) {
+                    console.error('Failed to fetch product details', err);
+                }
+            };
+
+            const handleProductFormChange = (e) => {
+                const { name, value } = e.target;
+                setProductForm({ ...productForm, [name]: value });
+            };
+
+            const handleFileChange = (e) => {
+                setFile(e.target.files[0]);
+            };
+
+            const handleFileTitleChange = (e) => {
+                setFileTitle(e.target.value);
+            };
+
+            const handleFileNotesChange = (e) => {
+                setFileNotes(e.target.value);
+            };
+
+            const handleUpload = async () => {
+                const formData = new FormData();
+                formData.append('files', file);
+                formData.append('title', fileTitle);
+                formData.append('notes', fileNotes);
+
+                try {
+                    const response = await fetch(`${apiBaseUrl}/upload`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                        body: formData,
+                    });
+                    const data = await response.json();
+                    return data._id;
+                } catch (err) {
+                    console.error('Failed to upload file', err);
+                    return null;
+                }
+            };
+
+            const handleProductSubmit = async (e) => {
+                e.preventDefault();
+
+                const uploadId = file ? await handleUpload() : null;
+                if (uploadId) {
+                    setProductForm({ ...productForm, ["upload$upload"]: [{ _id: uploadId }] });
+                }
+
+                const productData = {
+                    en: {
+                        title: productForm.enTitle,
+                        description: productForm.enDescription
+                    },
+                    fr: {
+                        title: productForm.frTitle,
+                        description: productForm.frDescription
+                    },
+                    total: parseFloat(productForm.total),
+                    subscription: productForm.subscription,
+                    ["upload$upload"]: uploadId ? [{ _id: uploadId }] : productForm["upload$upload"]
+                };
+
+                try {
+                    const response = await fetch(`${apiBaseUrl}/product/${selectedProduct ? selectedProduct._id : 'create'}`, {
+                        method: selectedProduct ? 'PUT' : 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('authKey')}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(productData),
+                    });
+                    await response.json();
+                    setProductForm({ enTitle: '', enDescription: '', frTitle: '', frDescription: '', total: '', subscription: {}, upload: [] });
+                    setSelectedProduct(null);
+                    setFile(null);
+                    setFileTitle('');
+                    setFileNotes('');
+                    setShowModal(false);
+                    fetchProducts();
+                } catch (err) {
+                    console.error('Failed to submit product', err);
+                }
+            };
+
+            const handleDeleteProduct = async (id) => {
+                try {
+                    await fetch(`${apiBaseUrl}/product/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                    });
+                    fetchProducts();
+                } catch (err) {
+                    console.error('Failed to delete product', err);
+                }
+            };
+
+            const handleEditProduct = (product) => {
+                fetchProductDetails(product._id);
+                setShowModal(true);
+            };
+
+            return (
+                <div>
+                    <h2 className="text-2xl font-bold mb-2">Products</h2>
+                    <button onClick={() => setShowModal(true)} className="mb-4 bg-blue-500 text-white py-2 px-4 rounded">Add Product</button>
+                    <table className="min-w-full bg-white rounded-lg shadow-md">
+                        <thead>
+                            <tr>
+                                <th className="py-2 px-4 border-b">ID</th>
+                                <th className="py-2 px-4 border-b">Price</th>
+                                <th className="py-2 px-4 border-b">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {Array.isArray(products) ? products.map((product) => (
+                                <tr key={product._id}>
+                                    <td className="py-2 px-4 border-b">{product._id}</td>
+                                    <td className="py-2 px-4 border-b">{product.total}</td>
+                                    <td className="py-2 px-4 border-b">
+                                        <button onClick={() => fetchProductDetails(product._id)} className="mr-2 bg-green-500 text-white py-1 px-3 rounded">View</button>
+                                        <button onClick={() => handleEditProduct(product)} className="mr-2 bg-yellow-500 text-white py-1 px-3 rounded">Edit</button>
+                                        <button onClick={() => handleDeleteProduct(product._id)} className="bg-red-500 text-white py-1 px-3 rounded">Delete</button>
+                                    </td>
+                                </tr>
+                            )) : null}
+                        </tbody>
+                    </table>
+                    {selectedProduct && (
+                        <div>
+                            <h2 className="text-2xl font-bold mb-2">Product Details</h2>
+                            <TreeView data={selectedProduct} label="Product Details" />
+                        </div>
+                    )}
+                    <Modal show={showModal} onClose={() => setShowModal(false)}>
+                        <h2 className="text-2xl font-bold mb-2">{selectedProduct ? 'Edit Product' : 'Add Product'}</h2>
+                        <form onSubmit={handleProductSubmit} className="mb-4">
+                            <div className="mb-4">
+                                <label className="block text-gray-700">Title (EN)</label>
+                                <input
+                                    type="text"
+                                    name="enTitle"
+                                    value={productForm.enTitle}
+                                    onChange={handleProductFormChange}
+                                    className="block w-full p-2 border border-gray-300 rounded"
+                                    required
+                                />
+                            </div>
+                            <div className="mb-4">
+                                <label className="block text-gray-700">Description (EN)</label>
+                                <textarea
+                                    name="enDescription"
+                                    value={productForm.enDescription}
+                                    onChange={handleProductFormChange}
+                                    className="block w-full p-2 border border-gray-300 rounded"
+                                    required
+                                ></textarea>
+                            </div>
+                            <div className="mb-4">
+                                <label className="block text-gray-700">Title (FR)</label>
+                                <input
+                                    type="text"
+                                    name="frTitle"
+                                    value={productForm.frTitle}
+                                    onChange={handleProductFormChange}
+                                    className="block w-full p-2 border border-gray-300 rounded"
+                                    required
+                                />
+                            </div>
+                            <div className="mb-4">
+                                <label className="block text-gray-700">Description (FR)</label>
+                                <textarea
+                                    name="frDescription"
+                                    value={productForm.frDescription}
+                                    onChange={handleProductFormChange}
+                                    className="block w-full p-2 border border-gray-300 rounded"
+                                    required
+                                ></textarea>
+                            </div>
+                            <div className="mb-4">
+                                <label className="block text-gray-700">Total Price</label>
+                                <input
+                                    type="number"
+                                    name="total"
+                                    value={productForm.total}
+                                    onChange={handleProductFormChange}
+                                    className="block w-full p-2 border border-gray-300 rounded"
+                                    required
+                                />
+                            </div>
+                            <div className="mb-4">
+                                <label className="block text-gray-700">File Title</label>
+                                <input
+                                    type="text"
+                                    value={fileTitle}
+                                    onChange={handleFileTitleChange}
+                                    className="block w-full p-2 border border-gray-300 rounded"
+                                    required
+                                />
+                            </div>
+                            <div className="mb-4">
+                                <label className="block text-gray-700">File Notes</label>
+                                <textarea
+                                    value={fileNotes}
+                                    onChange={handleFileNotesChange}
+                                    className="block w-full p-2 border border-gray-300 rounded"
+                                    required
+                                ></textarea>
+                            </div>
+                            <div className="mb-4">
+                                <label className="block text-gray-700">File Upload</label>
+                                <input
+                                    type="file"
+                                    onChange={handleFileChange}
+                                    className="block w-full p-2 border border-gray-300 rounded"
+                                />
+                            </div>
+                            <button type="submit" className="bg-blue-500 text-white py-2 px-4 rounded">
+                                {selectedProduct ? 'Update Product' : 'Add Product'}
+                            </button>
+                        </form>
+                        {selectedProduct && (
+                            <div>
+                                <h3 className="text-xl font-bold mb-2">Uploads</h3>
+                                <table className="min-w-full bg-white rounded-lg shadow-md">
+                                    <thead>
+                                        <tr>
+                                            <th className="py-2 px-4 border-b">File ID</th>
+                                            <th className="py-2 px-4 border-b">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {Array.isArray(selectedProduct["upload$upload"]) ? selectedProduct["upload$upload"].map((upload) => (
+                                            <tr key={upload._id}>
+                                                <td className="py-2 px-4 border-b">{upload._id}</td>
+                                                <td className="py-2 px-4 border-b">
+                                                    <button onClick={() => fetchProductDetails(upload._id)} className="mr-2 bg-green-500 text-white py-1 px-3 rounded">View</button>
+                                                </td>
+                                            </tr>
+                                        )) : null}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </Modal>
+                </div>
+            );
+        };
+
+        const OrderManagement = () => {
+            const [orders, setOrders] = useState([]);
+            const [products, setProducts] = useState([]);
+            const [selectedOrder, setSelectedOrder] = useState(null);
+            const [orderForm, setOrderForm] = useState({ ["product$product"]: [] });
+            const [showModal, setShowModal] = useState(false);
+
+            useEffect(() => {
+                fetchOrders();
+                fetchProducts();
+            }, []);
+
+            const fetchOrders = async () => {
+                try {
+                    const response = await fetch(`${apiBaseUrl}/order/all`, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                    });
+                    const data = await response.json();
+                    setOrders(Array.isArray(data) ? data : []);
+                } catch (err) {
+                    console.error('Failed to fetch orders', err);
+                }
+            };
+
+            const fetchProducts = async () => {
+                try {
+                    const response = await fetch(`${apiBaseUrl}/product/all`, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                    });
+                    const data = await response.json();
+                    setProducts(Array.isArray(data) ? data : []);
+                } catch (err) {
+                    console.error('Failed to fetch products', err);
+                }
+            };
+
+            const fetchOrderDetails = async (id) => {
+                try {
+                    const response = await fetch(`${apiBaseUrl}/order/${id}`, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                    });
+                    const data = await response.json();
+                    const productDetails = await Promise.all(Array.isArray(data["product$product"]) ? data["product$product"].map(async (product) => {
+                        const productResponse = await fetch(`${apiBaseUrl}/product/${product._id}`, {
+                            method: 'GET',
+                            headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                        });
+                        return await productResponse.json();
+                    }) : []);
+                    setSelectedOrder({ ...data, productDetails });
+                } catch (err) {
+                    console.error('Failed to fetch order details', err);
+                }
+            };
+
+            const handleOrderFormChange = (e) => {
+                const { name, value, selectedOptions } = e.target;
+                if (name === "product$product") {
+                    const selectedIds = Array.from(selectedOptions).map(option => ({ _id: option.value }));
+                    setOrderForm({ ...orderForm, [name]: selectedIds });
+                } else {
+                    setOrderForm({ ...orderForm, [name]: value });
+                }
+            };
+
+            const handleOrderSubmit = async (e) => {
+                e.preventDefault();
+                try {
+                    const response = await fetch(`${apiBaseUrl}/order/${selectedOrder ? selectedOrder._id : 'create'}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('authKey')}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(orderForm),
+                    });
+                    await response.json();
+                    setOrderForm({ ["product$product"]: [] });
+                    setSelectedOrder(null);
+                    setShowModal(false);
+                    fetchOrders();
+                } catch (err) {
+                    console.error('Failed to submit order', err);
+                }
+            };
+
+            const handleDeleteOrder = async (id) => {
+                try {
+                    await fetch(`${apiBaseUrl}/order/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('authKey')}` },
+                    });
+                    fetchOrders();
+                } catch (err) {
+                    console.error('Failed to delete order', err);
+                }
+            };
+
+            const handleEditOrder = (order) => {
+                setSelectedOrder(order);
+                setOrderForm({ ["product$product"]: Array.isArray(order["product$product"]) ? order["product$product"].map(p => ({ _id: p._id })) : [] });
+                setShowModal(true);
+            };
+
+            return (
+                <div>
+                    <h2 className="text-2xl font-bold mb-2">Orders</h2>
+                    <button onClick={() => setShowModal(true)} className="mb-4 bg-blue-500 text-white py-2 px-4 rounded">Add Order</button>
+                    <table className="min-w-full bg-white rounded-lg shadow-md">
+                        <thead>
+                            <tr>
+                                <th className="py-2 px-4 border-b">Order ID</th>
+                                <th className="py-2 px-4 border-b">Products</th>
+                                <th className="py-2 px-4 border-b">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {Array.isArray(orders) ? orders.map((order) => (
+                                <tr key={order._id}>
+                                    <td className="py-2 px-4 border-b">{order._id}</td>
+                                    <td className="py-2 px-4 border-b">
+                                        {Array.isArray(order["product$product"]) ? order["product$product"].map((product) => (
+                                            <div key={product._id}>
+                                                {products.find(p => p._id === product._id)?.en?.title}
+                                            </div>
+                                        )) : null}
+                                    </td>
+                                    <td className="py-2 px-4 border-b">
+                                        <button onClick={() => fetchOrderDetails(order._id)} className="mr-2 bg-green-500 text-white py-1 px-3 rounded">View</button>
+                                        <button onClick={() => handleEditOrder(order)} className="mr-2 bg-yellow-500 text-white py-1 px-3 rounded">Edit</button>
+                                        <button onClick={() => handleDeleteOrder(order._id)} className="bg-red-500 text-white py-1 px-3 rounded">Delete</button>
+                                    </td>
+                                </tr>
+                            )) : null}
+                        </tbody>
+                    </table>
+                    {selectedOrder && (
+                        <div>
+                            <h2 className="text-2xl font-bold mb-2">Order Details</h2>
+                            <TreeView data={selectedOrder} label="Order Details" />
+                        </div>
+                    )}
+                    <Modal show={showModal} onClose={() => setShowModal(false)}>
+                        <h2 className="text-2xl font-bold mb-2">{selectedOrder ? 'Edit Order' : 'Add Order'}</h2>
+                        <form onSubmit={handleOrderSubmit} className="mb-4">
+                            <div className="mb-4">
+                                <label className="block text-gray-700">Select Products</label>
+                                <select
+                                    name="product$product"
+                                    multiple
+                                    value={orderForm["product$product"].map(p => p._id)}
+                                    onChange={handleOrderFormChange}
+                                    className="block w-full p-2 border border-gray-300 rounded"
+                                    required
+                                >
+                                    {Array.isArray(products) ? products.map((p) => (
+                                        <option key={p._id} value={p._id}>{p.en?.title}</option>
+                                    )) : null}
+                                </select>
+                            </div>
+                            <button type="submit" className="bg-blue-500 text-white py-2 px-4 rounded">
+                                {selectedOrder ? 'Update Order' : 'Add Order'}
+                            </button>
+                        </form>
+                    </Modal>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
