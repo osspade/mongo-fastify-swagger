@@ -42,39 +42,43 @@ export default class account {
         },
       },
       handler: async function (request, reply) {
+        try {
+          // Verify email is not already in the system
+          const existingAccount = await collection.findOne({ "profile.email": request.body.profile.email });
+          if (existingAccount) {
+            return reply.status(409).send({ message: "Email already exists in the system" });
+          }
 
+          const auth = {
+            'roles': request.body.roles,
+            'password': bcrypt.hashSync(request.body.password, 10),
+            'authkey': bcrypt.hashSync(request.body.profile.email + request.body.password, 10),
+          }
 
-        const auth = {
-          'roles': request.body.roles,
-          'password': bcrypt.hashSync(request.body.password, 10),
-          'authkey': bcrypt.hashSync(request.body.email + request.body.password, 10),
+          delete request.body.password
+          delete request.body.roles
+          const profile = {
+            ...request.body,
+            'created': new Date(),
+          }
+
+          let result = await collection.insertOne({
+            ...profile,
+            ...auth
+          });
+
+          let event = {
+            'url': `/${_collection}/create`,
+            'account$account': { _id: result.insertedId },
+            'message': `${template_dir}/${profile.language}/${_collection}/create.message.cjs`,
+            'subject': `${template_dir}/${profile.language}/${_collection}/create.subject.cjs`,
+          }
+
+          new events().email(util, event)
+          reply.status(200).send(profile);
+        } catch (error) {
+          reply.status(500).send({ message: "Failed to create account", error: error.message });
         }
-
-        delete request.body.password
-        delete request.body.roles
-        const profile = {
-          ...request.body,
-          'created': new Date(),
-        }
-
-
-
-        let result = await collection.insertOne({
-          ...profile,
-          ...auth
-        });
-
-        let event = {
-          'url': `/${_collection}/create`,
-          'account$account': { _id: result.insertedId },
-          'message': `${template_dir}/${profile.language}/${_collection}/create.message.cjs`,
-          'subject': `${template_dir}/${profile.language}/${_collection}/create.subject.cjs`,
-
-        }
-
-        new events().email(util, event)
-        reply.status(200).send(profile);
-
       }
     })
 
@@ -321,6 +325,67 @@ export default class account {
       }
     })
 
+    // New endpoint to check what role an email is assigned to
+    util.fastify.route({
+      method: 'GET',
+      url: `/${_collection}/check-email-role`,
+      schema: {
+        tags: [_collection],
+        description: 'Check what role an email is assigned to',
+        querystring: {
+          type: 'object',
+          required: ['email'],
+          properties: {
+            email: { type: 'string' }
+          }
+        },
+        security: [{ apiauth: [] }],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              email: { type: 'string' },
+              roles: { type: 'array', items: { type: 'string' } },
+              exists: { type: 'boolean' }
+            }
+          }
+        }
+      },
+      preHandler: util.fastify.auth([util.fastify.authenticate]),
+      handler: async function (request, reply) {
+        try {
+          const email = request.query.email;
+          
+          new events().log(util, {
+            'url': `/${_collection}/check-email-role`,
+            'account$account': { _id: new util.fastify.mongo.ObjectId(request.auth._id) },
+            'email': email
+          });
+          
+          const account = await collection.findOne({ "profile.email": email }, 
+            { projection: { roles: 1, "profile.email": 1 } });
+            
+          if (account) {
+            reply.status(200).send({
+              email: email,
+              roles: account.roles,
+              exists: true
+            });
+          } else {
+            reply.status(200).send({
+              email: email,
+              roles: [],
+              exists: false
+            });
+          }
+        } catch (error) {
+          reply.status(500).send({ 
+            message: "Failed to check email role", 
+            error: error.message 
+          });
+        }
+      }
+    })
 
   }
 
