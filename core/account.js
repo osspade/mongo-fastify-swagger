@@ -199,7 +199,8 @@ export default class account {
         body: {
           type: 'object',
           properties: {
-            password: { type: 'string' },
+            currentPassword: { type: 'string' },
+            newPassword: { type: 'string' },
             profile: {
               type: 'object',
               properties: {
@@ -207,71 +208,96 @@ export default class account {
                 firstname: { type: 'string' },
                 lastname: { type: 'string' },
                 phone: { type: 'string' },
+                language: { type: 'string' },
               }
             }
-
           }
         },
         security: [{ apiauth: [] }],
       },
       preHandler: util.fastify.auth([util.fastify.authenticate]),
       handler: async function (request, reply) {
-
-        let updateSchema = {};
-        if (request.body.profile) {
-          if (request.body.profile.firstname) {
-            updateSchema['profile.firstname'] = request.body.profile.firstname
+        try {
+          const account_id = new util.fastify.mongo.ObjectId(request.auth._id);
+          
+          // Get current user data
+          const currentUser = await collection.findOne({ "_id": account_id });
+          if (!currentUser) {
+            return reply.status(404).send({ message: "User not found" });
           }
-          if (request.body.profile.lastname) {
-            updateSchema['profile.lastname'] = request.body.profile.lastname
+          
+          let updateSchema = {};
+          const sensitiveUpdate = request.body.newPassword || request.body.profile?.email;
+          
+          // Require password verification for sensitive updates
+          if (sensitiveUpdate) {
+            if (!request.body.currentPassword) {
+              return reply.status(400).send({ 
+                message: "Current password is required when changing password or email" 
+              });
+            }
+            
+            // Verify the current password for sensitive updates
+            if (!bcrypt.compareSync(request.body.currentPassword, currentUser.password)) {
+              return reply.status(401).send({ message: "Current password is incorrect" });
+            }
           }
-          if (request.body.profile.phone) {
-            updateSchema['profile.phone'] = request.body.profile.phone
-          }
-          if (request.body.profile.language) {
-            updateSchema['profile.language'] = request.body.profile.language
-          }
-
-          if (request.body.password) {
-            updateSchema['password'] = bcrypt.hashSync(request.body.password, 10);
-
+          
+          // Handle profile updates
+          if (request.body.profile) {
+            if (request.body.profile.firstname) {
+              updateSchema['profile.firstname'] = request.body.profile.firstname;
+            }
+            if (request.body.profile.lastname) {
+              updateSchema['profile.lastname'] = request.body.profile.lastname;
+            }
+            if (request.body.profile.phone) {
+              updateSchema['profile.phone'] = request.body.profile.phone;
+            }
+            if (request.body.profile.language) {
+              updateSchema['profile.language'] = request.body.profile.language;
+            }
             if (request.body.profile.email) {
-              updateSchema['profile.email'] = request.body.profile.email
-              updateSchema.authkey = bcrypt.hashSync(request.body.profile.email + request.body.password, 10);
-
+              updateSchema['profile.email'] = request.body.profile.email;
             }
-
           }
-
-          const account_id = new util.fastify.mongo.ObjectId(request.auth._id)
-
-          try {
-            collection.updateOne(
-              { "_id": account_id },
-              { $set: updateSchema },
-              { upsert: false }
-            )
-
-            let result = { "_id": account_id, "update": Object.keys(updateSchema) }
-
-
-            let eventPayload = {
-              'url': '/auth/update/',
-              'message': `${template_dir}/${request.auth.profile.language}/${_collection}/update.message.cjs`,
-              'subject': `${template_dir}/${request.auth.profile.language}/${_collection}/update.subject.cjs`,
-              'account$account': { _id: new util.fastify.mongo.ObjectId(request.auth._id) },
-              ...result
-            }
-
-            new events().email(util, eventPayload)
-
-            reply.status(200).send(result);
-
-          } catch (e) {
-            reply.status(400).send({ "error": e });
+          
+          // Handle password update if requested
+          if (request.body.newPassword) {
+            updateSchema['password'] = bcrypt.hashSync(request.body.newPassword, 10);
+            
+            // Update authkey if changing password
+            const emailToUse = request.body.profile?.email || currentUser.profile.email;
+            updateSchema.authkey = bcrypt.hashSync(emailToUse + request.body.newPassword, 10);
           }
+          
+          // Only proceed if there are fields to update
+          if (Object.keys(updateSchema).length === 0) {
+            return reply.status(400).send({ message: "No valid fields to update" });
+          }
+          
+          await collection.updateOne(
+            { "_id": account_id },
+            { $set: updateSchema },
+            { upsert: false }
+          );
+          
+          let result = { "_id": account_id, "update": Object.keys(updateSchema) };
+          
+          let eventPayload = {
+            'url': '/auth/update/',
+            'message': `${template_dir}/${currentUser.profile.language}/${_collection}/update.message.cjs`,
+            'subject': `${template_dir}/${currentUser.profile.language}/${_collection}/update.subject.cjs`,
+            'account$account': { _id: account_id },
+            ...result
+          };
+          
+          new events().email(util, eventPayload);
+          
+          reply.status(200).send(result);
+        } catch (error) {
+          reply.status(500).send({ message: "Failed to update account", error: error.message });
         }
-
       }
     })
 
