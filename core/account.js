@@ -49,17 +49,21 @@ export default class account {
             return reply.status(409).send({ message: "Email already exists in the system" });
           }
 
+          // Ensure language is set with a fallback
+          const language = request.body.profile.language || 'en';
+          
+          // Make sure profile has language set
+          const profile = {
+            ...request.body.profile,
+            language: language, // Explicitly set language
+            'created': new Date(),
+          };
+
           const auth = {
             'roles': request.body.roles || ['user'],
             'password': bcrypt.hashSync(request.body.password, 10),
-            'authkey': bcrypt.hashSync(request.body.profile.email + request.body.password, 10),
-          }
-
-          // Extract profile data correctly
-          const profile = {
-            ...request.body.profile,
-            'created': new Date(),
-          }
+            'authkey': bcrypt.hashSync(profile.email + request.body.password, 10),
+          };
 
           const accountData = {
             profile,
@@ -68,20 +72,20 @@ export default class account {
 
           let result = await collection.insertOne(accountData);
 
-          // Ensure language is defined for template paths
-          const language = profile.language || 'en';
-          
+          // Set up event with language explicitly included
           let event = {
             'url': `/${_collection}/create`,
             'account$account': { _id: result.insertedId },
+            'language': language, // Add language explicitly to event object
             'message': `${template_dir}/${language}/${_collection}/create.message.cjs`,
             'subject': `${template_dir}/${language}/${_collection}/create.subject.cjs`,
-          }
+            'profile': profile // Include profile data for email template
+          };
 
           try {
             await new events().email(util, event);
           } catch (emailError) {
-            console.error('Failed to send email notification:', emailError);
+            console.error(`Failed to send email notification (language: ${language}):`, emailError);
             // Continue with response even if email fails
           }
           
