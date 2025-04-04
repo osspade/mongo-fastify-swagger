@@ -50,33 +50,44 @@ export default class account {
           }
 
           const auth = {
-            'roles': request.body.roles,
+            'roles': request.body.roles || ['user'],
             'password': bcrypt.hashSync(request.body.password, 10),
             'authkey': bcrypt.hashSync(request.body.profile.email + request.body.password, 10),
           }
 
-          delete request.body.password
-          delete request.body.roles
+          // Extract profile data correctly
           const profile = {
-            ...request.body,
+            ...request.body.profile,
             'created': new Date(),
           }
 
-          let result = await collection.insertOne({
-            ...profile,
+          const accountData = {
+            profile,
             ...auth
-          });
+          };
 
+          let result = await collection.insertOne(accountData);
+
+          // Ensure language is defined for template paths
+          const language = profile.language || 'en';
+          
           let event = {
             'url': `/${_collection}/create`,
             'account$account': { _id: result.insertedId },
-            'message': `${template_dir}/${profile.language}/${_collection}/create.message.cjs`,
-            'subject': `${template_dir}/${profile.language}/${_collection}/create.subject.cjs`,
+            'message': `${template_dir}/${language}/${_collection}/create.message.cjs`,
+            'subject': `${template_dir}/${language}/${_collection}/create.subject.cjs`,
           }
 
-          new events().email(util, event)
+          try {
+            await new events().email(util, event);
+          } catch (emailError) {
+            console.error('Failed to send email notification:', emailError);
+            // Continue with response even if email fails
+          }
+          
           reply.status(200).send(profile);
         } catch (error) {
+          console.error('Account creation error:', error);
           reply.status(500).send({ message: "Failed to create account", error: error.message });
         }
       }
