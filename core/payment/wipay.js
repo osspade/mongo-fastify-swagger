@@ -29,8 +29,65 @@ export default class wipay {
             url: `/${_collection}/:mode/:order_id`,
             schema: {
                 tags: [_collection],
-                description: `${_collection} from Order`,
-                  security: [{ apiauth: [] }],
+                description: 'Initialize a WiPay payment for an order',
+                params: {
+                    type: 'object',
+                    required: ['mode', 'order_id'],
+                    properties: {
+                        mode: { 
+                            type: 'string', 
+                            enum: ['live', 'sandbox'],
+                            description: 'Payment mode - either "live" for production or "sandbox" for testing' 
+                        },
+                        order_id: { 
+                            type: 'string', 
+                            description: 'Unique identifier of the order to be paid for' 
+                        }
+                    }
+                },
+                security: [{ apiauth: [] }],
+                response: {
+                    200: {
+                        type: 'object',
+                        description: 'WiPay payment initialization response',
+                        properties: {
+                            wipay: {
+                                oneOf: [
+                                    {
+                                        type: 'string',
+                                        description: 'URL to redirect the user to for payment completion'
+                                    },
+                                    {
+                                        type: 'object',
+                                        description: 'Response from WiPay payment initialization',
+                                        properties: {
+                                            url: { type: 'string', description: 'Payment URL' },
+                                            transaction_id: { type: 'string', description: 'WiPay transaction ID' },
+                                            message: { type: 'string', description: 'Response message' }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    400: {
+                        type: 'object',
+                        description: 'Payment initialization error',
+                        properties: {
+                            message: { type: 'string', description: 'Error message' },
+                            error: { type: 'string', description: 'Error details' }
+                        }
+                    },
+                    401: {
+                        type: 'object',
+                        description: 'Authentication error',
+                        properties: {
+                            statusCode: { type: 'integer' },
+                            error: { type: 'string' },
+                            message: { type: 'string' }
+                        }
+                    }
+                }
             },
                preHandler: util.fastify.auth([util.fastify.authenticate]),
             handler: async function (request, reply) {
@@ -94,7 +151,62 @@ export default class wipay {
             url: `/${_collection}/callback`,
             schema: {
                 tags: [_collection],
-                description: `${_collection} CC Callback`,
+                description: 'Callback endpoint for WiPay payment processing notifications',
+                querystring: {
+                    type: 'object',
+                    properties: {
+                        status: { 
+                            type: 'string', 
+                            description: 'Status of the payment (e.g., "success", "failed")' 
+                        },
+                        transaction_id: { 
+                            type: 'string', 
+                            description: 'WiPay transaction ID reference' 
+                        },
+                        order_id: { 
+                            type: 'string', 
+                            description: 'Original order ID that was paid for' 
+                        },
+                        date: { 
+                            type: 'string', 
+                            format: 'date-time',
+                            description: 'Date and time of the payment transaction' 
+                        },
+                        resasonDescription: { 
+                            type: 'string', 
+                            description: 'Reason or description for the payment status (misspelled in original API)' 
+                        }
+                    }
+                },
+                response: {
+                    200: {
+                        type: 'object',
+                        description: 'WiPay callback response',
+                        properties: {
+                            status: { 
+                                type: 'string', 
+                                description: 'Status of the payment' 
+                            },
+                            transaction_id: { 
+                                type: 'string', 
+                                description: 'WiPay transaction ID reference' 
+                            },
+                            order_id: { 
+                                type: 'string', 
+                                description: 'Order ID that was paid for' 
+                            },
+                            date: { 
+                                type: 'string', 
+                                format: 'date-time',
+                                description: 'Date and time of the payment transaction' 
+                            },
+                            resasonDescription: { 
+                                type: 'string', 
+                                description: 'Reason or description for the payment status (misspelled in original API)' 
+                            }
+                        }
+                    }
+                }
             },
             handler: async function (request, reply) {
            

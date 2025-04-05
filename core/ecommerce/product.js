@@ -17,37 +17,100 @@ export default class product {
             url: `/${_collection}/create`,
             schema: {
                 tags: [_collection],
-
-                description: `${_collection} create`,
+                description: 'Create a new product with multilingual support and pricing information',
                 body: {
                     type: 'object',
-                    required: ["en","total","subscription"],
+                    required: ["en", "total", "subscription"],
                     properties: {
                         en: {
                             type: 'object',
                             required: ["title", "description"],
+                            description: 'English product information',
                             properties: {
-                                title: { type: 'string', default: "Bicycle" },
-                                description: { type: 'string', default: "Mountain and Street" }
+                                title: { 
+                                    type: 'string', 
+                                    description: 'Product title in English',
+                                    default: "Bicycle" 
+                                },
+                                description: { 
+                                    type: 'string', 
+                                    description: 'Product description in English',
+                                    default: "Mountain and Street" 
+                                }
                             }
                         },
                         fr: {
                             type: 'object',
                             required: ["title", "description"],
+                            description: 'French product information',
                             properties: {
-                                title: { type: 'string', default: "Vélo" },
-                                description: { type: 'string', default: "Montagne et Rue" }
+                                title: { 
+                                    type: 'string', 
+                                    description: 'Product title in French',
+                                    default: "Vélo" 
+                                },
+                                description: { 
+                                    type: 'string', 
+                                    description: 'Product description in French',
+                                    default: "Montagne et Rue" 
+                                }
                             }
                         },
-
-                        total: { type: 'number', default: 59.99 },
-                        subscription: { type: 'object', properties: {} },
-                        upload$upload: { type: 'array', items: { type: 'object' } }
-
-
+                        total: { 
+                            type: 'number', 
+                            description: 'Product price',
+                            default: 59.99 
+                        },
+                        subscription: { 
+                            type: 'object', 
+                            description: 'Subscription details if product is subscription-based',
+                            properties: {} 
+                        },
+                        upload$upload: { 
+                            type: 'array', 
+                            description: 'References to uploaded product images or files',
+                            items: { 
+                                type: 'object',
+                                properties: {
+                                    _id: { type: 'string', description: 'Uploaded file ID' }
+                                }
+                            } 
+                        }
                     }
                 },
                 security: [{ apiauth: [] }],
+                response: {
+                    200: {
+                        type: 'object',
+                        description: 'Product creation successful',
+                        properties: {
+                            acknowledged: { 
+                                type: 'boolean', 
+                                description: 'Whether the operation was acknowledged by the database' 
+                            },
+                            insertedId: { 
+                                type: 'string', 
+                                description: 'ID of the newly created product' 
+                            }
+                        }
+                    },
+                    400: {
+                        type: 'object',
+                        description: 'Creation error',
+                        properties: {
+                            error: { type: 'object', description: 'Error details' }
+                        }
+                    },
+                    401: {
+                        type: 'object',
+                        description: 'Authentication error',
+                        properties: {
+                            statusCode: { type: 'integer' },
+                            error: { type: 'string' },
+                            message: { type: 'string' }
+                        }
+                    }
+                }
             },
             preHandler: util.fastify.auth([util.fastify.authenticate]),
             handler: async function (request, reply) {
@@ -76,8 +139,53 @@ export default class product {
             method: 'GET',
             url: `/${_collection}`,
             schema: {
-              tags: [_collection],
-              description: _collection,
+                tags: [_collection],
+                description: 'Retrieve all products',
+                response: {
+                    200: {
+                        type: 'array',
+                        description: 'List of all products',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                _id: { type: 'string', description: 'Unique product identifier' },
+                                en: {
+                                    type: 'object',
+                                    description: 'English product information',
+                                    properties: {
+                                        title: { type: 'string', description: 'Product title in English' },
+                                        description: { type: 'string', description: 'Product description in English' }
+                                    }
+                                },
+                                fr: {
+                                    type: 'object',
+                                    description: 'French product information',
+                                    properties: {
+                                        title: { type: 'string', description: 'Product title in French' },
+                                        description: { type: 'string', description: 'Product description in French' }
+                                    }
+                                },
+                                total: { type: 'number', description: 'Product price' },
+                                subscription: { type: 'object', description: 'Subscription details' },
+                                upload$upload: { 
+                                    type: 'array', 
+                                    description: 'References to product images or files',
+                                    items: { 
+                                        type: 'object',
+                                        properties: {
+                                            _id: { type: 'string' }
+                                        }
+                                    }
+                                },
+                                created: { 
+                                    type: 'string', 
+                                    format: 'date-time',
+                                    description: 'Product creation timestamp' 
+                                }
+                            }
+                        }
+                    }
+                }
             },
             handler: async function (request, reply) {      
               reply.status(200).send(await collection.find({}).toArray());

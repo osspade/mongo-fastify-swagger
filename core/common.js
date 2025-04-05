@@ -156,30 +156,68 @@ export default class common {
             method: 'GET',
             url: `/${_collection}/all`,
             schema: {
-              tags: [_collection],
-              description: `Get All ${_collection}`,
-              security: [{ apiauth: [] }],
+                tags: [_collection],
+                description: `Retrieve all ${_collection} records with basic fields`,
+                security: [{ apiauth: [] }],
+                response: {
+                    200: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                _id: { type: 'string', description: 'Unique identifier' },
+                                title: { type: 'string', description: 'Title of the record' },
+                                created: { type: 'string', format: 'date-time', description: 'Creation date' },
+                                profile: { type: 'object', description: 'Profile information' },
+                                details: { type: 'object', description: 'Additional details' }
+                            }
+                        }
+                    },
+                    400: {
+                        type: 'object',
+                        properties: {
+                            error: { type: 'string', description: 'Error message' }
+                        }
+                    }
+                }
             },
             preHandler: util.fastify.auth([util.fastify.authenticate]),
             handler: async function (request, reply) {
-      
-              new events().log(util, {
-                'url': `/${_collection}/all`,
-                'account$account': { _id: new util.fastify.mongo.ObjectId(request.auth._id) },
-              })
-      
-              reply.status(200).send(await collection.find({},{ projection: { _id:1, title:1 ,created: 1 , profile: 1,details:1  } }).toArray());
+                new events().log(util, {
+                    'url': `/${_collection}/all`,
+                    'account$account': { _id: new util.fastify.mongo.ObjectId(request.auth._id) },
+                })
+
+                reply.status(200).send(await collection.find({},{ projection: { _id:1, title:1 ,created: 1 , profile: 1,details:1  } }).toArray());
             }
-          })
-      
+        })
 
         util.fastify.route({
             method: 'GET',
             url: `/${_collection}/:id`,
             schema: {
                 tags: [_collection],
-                description: `Get ${_collection} ID`,
+                description: `Retrieve a specific ${_collection} record by ID`,
+                params: {
+                    type: 'object',
+                    properties: {
+                        id: { type: 'string', description: 'Unique identifier for the record' }
+                    },
+                    required: ['id']
+                },
                 security: [{ apiauth: [] }],
+                response: {
+                    200: {
+                        type: 'object',
+                        description: `Complete ${_collection} record`
+                    },
+                    400: {
+                        type: 'object',
+                        properties: {
+                            error: { type: 'string', description: 'Error message' }
+                        }
+                    }
+                }
             },
             preHandler: util.fastify.auth([util.fastify.authenticate]),
             handler: getHandler
@@ -190,8 +228,28 @@ export default class common {
             url: `/${_collection}/:id/:property`,
             schema: {
                 tags: [_collection],
-                description: 'Get ID Property (with "." property populate)',
+                description: `Retrieve a specific property from a ${_collection} record, with support for dot notation and population`,
+                params: {
+                    type: 'object',
+                    properties: {
+                        id: { type: 'string', description: 'Unique identifier for the record' },
+                        property: { type: 'string', description: 'Property path to retrieve. Use dot notation for nested properties and $ for population' }
+                    },
+                    required: ['id', 'property']
+                },
                 security: [{ apiauth: [] }],
+                response: {
+                    200: {
+                        type: 'object',
+                        description: 'Property value or populated reference'
+                    },
+                    400: {
+                        type: 'object',
+                        properties: {
+                            error: { type: 'string', description: 'Error message' }
+                        }
+                    }
+                }
             },
             preHandler: util.fastify.auth([util.fastify.authenticate]),
             handler: getHandler
@@ -202,11 +260,35 @@ export default class common {
             url: `/${_collection}/:id/:property`,
             schema: {
                 tags: [_collection],
-                description: `Add Object to Array of selected property by id`,
+                description: `Add an object to an array property of a ${_collection} record`,
+                params: {
+                    type: 'object',
+                    properties: {
+                        id: { type: 'string', description: 'Unique identifier for the record' },
+                        property: { type: 'string', description: 'Array property to add the object to' }
+                    },
+                    required: ['id', 'property']
+                },
                 body: {
-                    type: 'object'
+                    type: 'object',
+                    description: 'Object to add to the array property'
                 },
                 security: [{ apiauth: [] }],
+                response: {
+                    200: {
+                        type: 'object',
+                        properties: {
+                            _id: { type: 'string', description: 'Identifier of the updated record' },
+                            updated: { type: 'array', items: { type: 'string' }, description: 'List of updated fields' }
+                        }
+                    },
+                    400: {
+                        type: 'object',
+                        properties: {
+                            error: { type: 'string', description: 'Error message' }
+                        }
+                    }
+                }
             },
             preHandler: util.fastify.auth([util.fastify.authenticate]),
             handler: addPropertyHandler
@@ -256,14 +338,37 @@ export default class common {
             url: `/${_collection}/pathString/:id/:path`,
             schema: {
                 tags: [_collection],
-                description: `Update ${_collection} Path with a String`,
-                body: {
+                description: `Update a specific path in a ${_collection} record with a string value`,
+                params: {
                     type: 'object',
                     properties: {
-                        setString: { type: 'string' }
+                        id: { type: 'string', description: 'Unique identifier for the record' },
+                        path: { type: 'string', description: 'Path to the property to update' }
+                    },
+                    required: ['id', 'path']
+                },
+                body: {
+                    type: 'object',
+                    required: ['setString'],
+                    properties: {
+                        setString: { type: 'string', description: 'String value to set at the specified path' }
                     }
                 },
                 security: [{ apiauth: [] }],
+                response: {
+                    200: {
+                        type: 'object',
+                        properties: {
+                            message: { type: 'string', description: 'Success message' }
+                        }
+                    },
+                    400: {
+                        type: 'object',
+                        properties: {
+                            error: { type: 'string', description: 'Error message' }
+                        }
+                    }
+                }
             },
             preHandler: util.fastify.auth([util.fastify.authenticate]),
             handler: async function (request, reply) {
@@ -288,12 +393,34 @@ export default class common {
             url: `/${_collection}/pathObject/:id/:path`,
             schema: {
                 tags: [_collection],
-                description: `Update ${_collection} List item with a Object`,
+                description: `Update a specific path in a ${_collection} record with an object value`,
+                params: {
+                    type: 'object',
+                    properties: {
+                        id: { type: 'string', description: 'Unique identifier for the record' },
+                        path: { type: 'string', description: 'Path to the property to update' }
+                    },
+                    required: ['id', 'path']
+                },
                 body: {
                     type: 'object',
-                    properties:{}
+                    description: 'Object value to set at the specified path'
                 },
                 security: [{ apiauth: [] }],
+                response: {
+                    200: {
+                        type: 'object',
+                        properties: {
+                            message: { type: 'string', description: 'Success message' }
+                        }
+                    },
+                    400: {
+                        type: 'object',
+                        properties: {
+                            error: { type: 'string', description: 'Error message' }
+                        }
+                    }
+                }
             },
             preHandler: util.fastify.auth([util.fastify.authenticate]),
             handler: async function (request, reply) {
@@ -318,12 +445,35 @@ export default class common {
             url: `/${_collection}/pathList/:id/:path`,
             schema: {
                 tags: [_collection],
-                description: `Update ${_collection} Path item with a List`,
+                description: `Update a specific path in a ${_collection} record with an array of strings`,
+                params: {
+                    type: 'object',
+                    properties: {
+                        id: { type: 'string', description: 'Unique identifier for the record' },
+                        path: { type: 'string', description: 'Path to the property to update' }
+                    },
+                    required: ['id', 'path']
+                },
                 body: {
                     type: 'array',
-                    items: { type: "string" }
+                    items: { type: 'string' },
+                    description: 'Array of strings to set at the specified path'
                 },
                 security: [{ apiauth: [] }],
+                response: {
+                    200: {
+                        type: 'object',
+                        properties: {
+                            message: { type: 'string', description: 'Success message' }
+                        }
+                    },
+                    400: {
+                        type: 'object',
+                        properties: {
+                            error: { type: 'string', description: 'Error message' }
+                        }
+                    }
+                }
             },
             preHandler: util.fastify.auth([util.fastify.authenticate]),
             handler: async function (request, reply) {

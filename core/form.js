@@ -18,8 +18,37 @@ export default class form {
       url: `/${_collection}`,
       schema: {
         tags: [_collection],
-        description: _collection,
+        description: `Retrieve all ${_collection} records`,
         security: [{ apiauth: [] }],
+        response: {
+          200: {
+            type: 'array',
+            description: 'List of all form records',
+            items: {
+              type: 'object',
+              properties: {
+                _id: { type: 'string', description: 'Unique form identifier' },
+                title: { type: 'string', description: 'Form title' },
+                data: { type: 'object', description: 'Form structure and fields' },
+                response: { 
+                  type: 'array', 
+                  description: 'Responses submitted to this form',
+                  items: { type: 'object' }
+                },
+                created: { type: 'string', format: 'date-time', description: 'Form creation timestamp' }
+              }
+            }
+          },
+          401: {
+            type: 'object',
+            description: 'Authentication error',
+            properties: {
+              statusCode: { type: 'integer' },
+              error: { type: 'string' },
+              message: { type: 'string' }
+            }
+          }
+        }
       },
       preHandler: util.fastify.auth([util.fastify.authenticate]),
       handler: async function (request, reply) {
@@ -38,18 +67,66 @@ export default class form {
       url: `/${_collection}/update/:id`,
       schema: {
         tags: [_collection],
-
-        description: `${_collection} Update`,
+        description: `Update an existing ${_collection} by ID`,
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string', description: 'Unique identifier of the form to update' }
+          }
+        },
         body: {
           type: 'object',
           required: ["title", "data"],
           properties: {
-            title: { type: 'string' },
-            data: { type: 'object', properties: {} }
-
+            title: { 
+              type: 'string', 
+              description: 'The title of the form' 
+            },
+            data: { 
+              type: 'object', 
+              description: 'Form structure and fields definition',
+              properties: {} 
+            }
           }
         },
         security: [{ apiauth: [] }],
+        response: {
+          200: {
+            type: 'object',
+            description: 'Update confirmation',
+            properties: {
+              "form$form": { 
+                type: 'object',
+                description: 'Reference to the updated form',
+                properties: {
+                  _id: { type: 'string', description: 'Unique form identifier' }
+                }
+              },
+              "form.update": { 
+                type: 'array', 
+                description: 'List of fields that were updated',
+                items: { type: 'string' }
+              }
+            }
+          },
+          400: {
+            type: 'object',
+            description: 'Update error',
+            properties: {
+              error: { type: 'string', description: 'Error details' }
+            }
+          },
+          401: {
+            type: 'object',
+            description: 'Authentication error',
+            properties: {
+              statusCode: { type: 'integer' },
+              error: { type: 'string' },
+              message: { type: 'string' }
+            }
+          }
+        }
       },
       preHandler: util.fastify.auth([util.fastify.authenticate]),
       handler: async function (request, reply) {
@@ -85,16 +162,53 @@ export default class form {
       url: `/${_collection}/response/:id`,
       schema: {
         tags: [_collection],
-
-        description: `submit ${_collection} responses`,
+        description: `Submit responses to a specific ${_collection}`,
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string', description: 'Unique identifier of the form to respond to' }
+          }
+        },
         body: {
           type: 'object',
           required: ["response"],
           properties: {
-            response: { type: 'object' },
+            response: { 
+              type: 'object', 
+              description: 'Form response data containing answers to form fields' 
+            }
           }
         },
         security: [{ apiauth: [] }],
+        response: {
+          200: {
+            type: 'object',
+            description: 'Response submission confirmation',
+            properties: {
+              response: { 
+                type: 'object', 
+                description: 'The submitted response data' 
+              }
+            }
+          },
+          400: {
+            type: 'object',
+            description: 'Submission error',
+            properties: {
+              error: { type: 'string', description: 'Error details' }
+            }
+          },
+          401: {
+            type: 'object',
+            description: 'Authentication error',
+            properties: {
+              statusCode: { type: 'integer' },
+              error: { type: 'string' },
+              message: { type: 'string' }
+            }
+          }
+        }
       },
       preHandler: util.fastify.auth([util.fastify.authenticate]),
       handler: async function (request, reply) {
@@ -132,18 +246,56 @@ export default class form {
       url: `/${_collection}/create`,
       schema: {
         tags: [_collection],
-
-        description: `${_collection} create`,
+        description: `Create a new ${_collection}`,
         body: {
           type: 'object',
           required: ["title", "data"],
           properties: {
-            title: { type: 'string', default: "My New Form" },
-            data: { type: 'object', properties: {} }
-
+            title: { 
+              type: 'string', 
+              description: 'The title of the form',
+              default: "My New Form" 
+            },
+            data: { 
+              type: 'object', 
+              description: 'Form structure and fields definition',
+              properties: {} 
+            }
           }
         },
         security: [{ apiauth: [] }],
+        response: {
+          200: {
+            type: 'object',
+            description: 'Form creation confirmation',
+            properties: {
+              acknowledged: { 
+                type: 'boolean', 
+                description: 'Whether the operation was acknowledged' 
+              },
+              insertedId: { 
+                type: 'string', 
+                description: 'ID of the newly created form' 
+              }
+            }
+          },
+          400: {
+            type: 'object',
+            description: 'Creation error',
+            properties: {
+              error: { type: 'string', description: 'Error details' }
+            }
+          },
+          401: {
+            type: 'object',
+            description: 'Authentication error',
+            properties: {
+              statusCode: { type: 'integer' },
+              error: { type: 'string' },
+              message: { type: 'string' }
+            }
+          }
+        }
       },
       preHandler: util.fastify.auth([util.fastify.authenticate]),
       handler: async function (request, reply) {

@@ -14,8 +14,29 @@ constructor(){
     url: `/${_collection}`,
     schema: {
       tags: [_collection],
-      description: `${_collection} Info`,
+      description: `Retrieve all ${_collection} that don't have an email property`,
       security: [{ apiauth: [] }],
+      response: {
+        200: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              _id: { type: 'string', description: 'Unique identifier' },
+              details: { type: 'object', description: 'Event details' },
+              created: { type: 'string', format: 'date-time', description: 'Creation timestamp' }
+            }
+          }
+        },
+        401: {
+          type: 'object',
+          properties: {
+            statusCode: { type: 'integer' },
+            error: { type: 'string' },
+            message: { type: 'string' }
+          }
+        }
+      }
     },
     preHandler: util.fastify.auth([util.fastify.authenticate]),
     handler: async function (request, reply) {
@@ -30,8 +51,40 @@ constructor(){
     url: `/${_collection}/email`,
     schema: {
       tags: [_collection],
-      description: `${_collection} Email Filter`,
+      description: `Retrieve all ${_collection} that have the email flag set to true`,
       security: [{ apiauth: [] }],
+      response: {
+        200: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              _id: { type: 'string', description: 'Unique identifier' },
+              details: { type: 'object', description: 'Event details with email information' },
+              email: { type: 'boolean', description: 'Email flag (true)' },
+              log: { 
+                type: 'array', 
+                items: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string', description: 'Current status of the email event' },
+                    updated: { type: 'string', format: 'date-time', description: 'Last update timestamp' }
+                  }
+                }
+              },
+              created: { type: 'string', format: 'date-time', description: 'Creation timestamp' }
+            }
+          }
+        },
+        401: {
+          type: 'object',
+          properties: {
+            statusCode: { type: 'integer' },
+            error: { type: 'string' },
+            message: { type: 'string' }
+          }
+        }
+      }
     },
     preHandler: util.fastify.auth([util.fastify.authenticate]),
     handler: async function (request, reply) {
@@ -48,8 +101,41 @@ util.fastify.route({
   url: `/${_collection}/email-preview/:id`,
   schema: {
     tags: [_collection],
-    description: `${_collection} Email Filter`,
+    description: `Get a preview of an email for a specific ${_collection} record`,
+    params: {
+      type: 'object',
+      required: ['id'],
+      properties: {
+        id: { type: 'string', description: 'Unique identifier of the event' }
+      }
+    },
     security: [{ apiauth: [] }],
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          to: { type: 'string', description: 'Email recipient' },
+          subject: { type: 'string', description: 'Email subject with variables rendered' },
+          html: { type: 'string', description: 'Email body content with variables rendered' }
+        }
+      },
+      401: {
+        type: 'object',
+        properties: {
+          statusCode: { type: 'integer' },
+          error: { type: 'string' },
+          message: { type: 'string' }
+        }
+      },
+      404: {
+        type: 'object',
+        properties: {
+          statusCode: { type: 'integer' },
+          error: { type: 'string' },
+          message: { type: 'string', description: 'Event not found' }
+        }
+      }
+    }
   },
   preHandler: util.fastify.auth([util.fastify.authenticate]),
   handler: async function (request, reply) {

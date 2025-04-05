@@ -20,26 +20,59 @@ export default class account {
       url: `/${_collection}/create`,
       schema: {
         tags: [_collection],
-        description: 'Create Account',
+        description: 'Create a new user account with profile information',
         body: {
           type: 'object',
           required: ["password", "profile"],
           properties: {
-            password: { type: 'string', default: "secret!" },
-            roles: { type: 'array', items: { type: 'string', default: "admin" } },
+            password: { type: 'string', description: 'User password', default: "secret!" },
+            roles: { 
+              type: 'array', 
+              description: 'User authorization roles (defaults to "user" if not specified)',
+              items: { type: 'string', default: "admin" } 
+            },
             profile: {
               type: 'object',
               required: ["email", "firstname", "lastname", "phone", "language"],
               properties: {
-                email: { type: 'string', default: "support+APITEST@xrstudios.com" },
-                firstname: { type: 'string', default: "Bill" },
-                lastname: { type: 'string', default: "Brown" },
-                phone: { type: 'string', default: "+16475555555" },
-                language: { type: 'string', default: "en" },
+                email: { type: 'string', format: 'email', description: 'User email address', default: "support+APITEST@xrstudios.com" },
+                firstname: { type: 'string', description: 'User first name', default: "Bill" },
+                lastname: { type: 'string', description: 'User last name', default: "Brown" },
+                phone: { type: 'string', description: 'User phone number', default: "+16475555555" },
+                language: { type: 'string', description: 'User preferred language code', default: "en" },
               }
             }
           }
         },
+        response: {
+          200: {
+            description: 'Successfully created account',
+            type: 'object',
+            properties: {
+              email: { type: 'string', description: 'User email address' },
+              firstname: { type: 'string', description: 'User first name' },
+              lastname: { type: 'string', description: 'User last name' },
+              phone: { type: 'string', description: 'User phone number' },
+              language: { type: 'string', description: 'User preferred language code' },
+              created: { type: 'string', format: 'date-time', description: 'Account creation timestamp' }
+            }
+          },
+          409: {
+            description: 'Email already exists',
+            type: 'object',
+            properties: {
+              message: { type: 'string', description: 'Error message' }
+            }
+          },
+          500: {
+            description: 'Server error',
+            type: 'object',
+            properties: {
+              message: { type: 'string', description: 'Error message' },
+              error: { type: 'string', description: 'Error details' }
+            }
+          }
+        }
       },
       handler: async function (request, reply) {
         try {
@@ -102,35 +135,55 @@ export default class account {
       url: `/${_collection}/login`,
       schema: {
         tags: [_collection],
-        description: 'Authenticate',
+        description: 'Authenticate a user and retrieve account details',
         body: {
           type: 'object',
           required: ["email", "password"],
           properties: {
-            email: { type: 'string', default: "support+APITEST@xrstudios.com" },
-            password: { type: 'string', default: "secret!" }
+            email: { 
+              type: 'string', 
+              format: 'email',
+              description: 'User email address', 
+              default: "support+APITEST@xrstudios.com" 
+            },
+            password: { 
+              type: 'string', 
+              description: 'User password', 
+              default: "secret!" 
+            }
           }
-        }, response: {
+        }, 
+        response: {
           200: {
-            description: "Account Details",
-            content: {
-              'application/json': {
-                schema: {
+            description: "Account authentication successful",
             type: 'object',
             properties: {
-              "_id": { type: 'string' },
-              "roles": { type: 'array', items:{type:'string'} },
-              "authkey": { type: 'string' },
+              "_id": { type: 'string', description: 'Unique account identifier' },
+              "roles": { 
+                type: 'array', 
+                description: 'User authorization roles',
+                items: { type: 'string' } 
+              },
+              "authkey": { type: 'string', description: 'Authentication key for future requests' },
               "profile": {
-                type: 'object', properties: {
-                  "email": { type: 'string' },
-                  "firstname": { type: 'string' },
-                  "lastname": { type: 'string' },
-                  "phone": { type: 'string' },
-                  "language": { type: 'string' }
+                type: 'object', 
+                description: 'User profile information',
+                properties: {
+                  "email": { type: 'string', format: 'email', description: 'User email address' },
+                  "firstname": { type: 'string', description: 'User first name' },
+                  "lastname": { type: 'string', description: 'User last name' },
+                  "phone": { type: 'string', description: 'User phone number' },
+                  "language": { type: 'string', description: 'User preferred language code' }
                 }
               }
-            }}}}
+            }
+          },
+          400: {
+            description: "Authentication failed",
+            type: 'object',
+            properties: {
+              message: { type: 'string', description: 'Error message' }
+            }
           }
         }
       },
@@ -168,8 +221,42 @@ export default class account {
       url: `/${_collection}`,
       schema: {
         tags: [_collection],
-        description: `${_collection} Info`,
+        description: `Retrieve authenticated user's account information`,
         security: [{ apiauth: [] }],
+        response: {
+          200: {
+            description: "User account information",
+            type: 'object',
+            properties: {
+              "_id": { type: 'string', description: 'Unique account identifier' },
+              "roles": { 
+                type: 'array', 
+                description: 'User authorization roles',
+                items: { type: 'string' } 
+              },
+              "profile": {
+                type: 'object',
+                description: 'User profile information',
+                properties: {
+                  "email": { type: 'string', format: 'email', description: 'User email address' },
+                  "firstname": { type: 'string', description: 'User first name' },
+                  "lastname": { type: 'string', description: 'User last name' },
+                  "phone": { type: 'string', description: 'User phone number' },
+                  "language": { type: 'string', description: 'User preferred language code' }
+                }
+              }
+            }
+          },
+          401: {
+            description: "Not authenticated",
+            type: 'object',
+            properties: {
+              statusCode: { type: 'integer' },
+              error: { type: 'string' },
+              message: { type: 'string' }
+            }
+          }
+        }
       },
       preHandler: util.fastify.auth([util.fastify.authenticate]),
       handler: async function (request, reply) {
@@ -188,8 +275,50 @@ export default class account {
       url: `/${_collection}/role/:role`,
       schema: {
         tags: [_collection],
-        description: `${_collection} by Roles`,
+        description: `Retrieve all accounts with a specific role`,
+        params: {
+          type: 'object',
+          required: ['role'],
+          properties: {
+            role: { 
+              type: 'string', 
+              description: 'Role to filter accounts by (e.g., "admin", "user")' 
+            }
+          }
+        },
         security: [{ apiauth: [] }],
+        response: {
+          200: {
+            description: "List of accounts with specified role",
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                _id: { type: 'string', description: 'Unique account identifier' },
+                profile: {
+                  type: 'object',
+                  description: 'User profile information',
+                  properties: {
+                    email: { type: 'string', format: 'email', description: 'User email address' },
+                    firstname: { type: 'string', description: 'User first name' },
+                    lastname: { type: 'string', description: 'User last name' },
+                    phone: { type: 'string', description: 'User phone number' },
+                    language: { type: 'string', description: 'User preferred language code' }
+                  }
+                }
+              }
+            }
+          },
+          401: {
+            description: "Not authenticated",
+            type: 'object',
+            properties: {
+              statusCode: { type: 'integer' },
+              error: { type: 'string' },
+              message: { type: 'string' }
+            }
+          }
+        }
       },
       preHandler: util.fastify.auth([util.fastify.authenticate]),
       handler: async function (request, reply) {
@@ -210,25 +339,75 @@ export default class account {
       url: `/${_collection}/update`,
       schema: {
         tags: [_collection],
-        description: `${_collection} Update`,
+        description: `Update authenticated user's account information`,
         body: {
           type: 'object',
           properties: {
-            currentPassword: { type: 'string' },
-            newPassword: { type: 'string' },
+            currentPassword: { 
+              type: 'string', 
+              description: 'Current password (required for email or password changes)' 
+            },
+            newPassword: { 
+              type: 'string', 
+              description: 'New password (if changing password)' 
+            },
             profile: {
               type: 'object',
+              description: 'Profile fields to update',
               properties: {
-                email: { type: 'string' },
-                firstname: { type: 'string' },
-                lastname: { type: 'string' },
-                phone: { type: 'string' },
-                language: { type: 'string' },
+                email: { type: 'string', format: 'email', description: 'New email address' },
+                firstname: { type: 'string', description: 'New first name' },
+                lastname: { type: 'string', description: 'New last name' },
+                phone: { type: 'string', description: 'New phone number' },
+                language: { type: 'string', description: 'New preferred language code' },
               }
             }
           }
         },
         security: [{ apiauth: [] }],
+        response: {
+          200: {
+            description: "Account updated successfully",
+            type: 'object',
+            properties: {
+              "_id": { type: 'string', description: 'Account identifier' },
+              "update": { 
+                type: 'array', 
+                description: 'List of fields that were updated',
+                items: { type: 'string' } 
+              }
+            }
+          },
+          400: {
+            description: "Invalid update request",
+            type: 'object',
+            properties: {
+              message: { type: 'string', description: 'Error message' }
+            }
+          },
+          401: {
+            description: "Authentication error or incorrect password",
+            type: 'object',
+            properties: {
+              message: { type: 'string', description: 'Error message' }
+            }
+          },
+          404: {
+            description: "User not found",
+            type: 'object',
+            properties: {
+              message: { type: 'string', description: 'Error message' }
+            }
+          },
+          500: {
+            description: "Server error",
+            type: 'object',
+            properties: {
+              message: { type: 'string', description: 'Error message' },
+              error: { type: 'string', description: 'Error details' }
+            }
+          }
+        }
       },
       preHandler: util.fastify.auth([util.fastify.authenticate]),
       handler: async function (request, reply) {
@@ -321,15 +500,36 @@ export default class account {
       url: `/${_collection}/reset`,
       schema: {
         tags: [_collection],
-        description: `${_collection} Reset Password`,
+        description: `Request a password reset for an account`,
         body: {
           type: 'object',
           required: ["email"],
-
           properties: {
-            email: { type: 'string' },
+            email: { 
+              type: 'string', 
+              format: 'email',
+              description: 'Email address of the account to reset' 
+            },
           }
         },
+        response: {
+          200: {
+            description: "Reset request processed",
+            type: 'object',
+            properties: {
+              message: { type: 'string', description: 'Confirmation message' }
+            }
+          },
+          400: {
+            description: "Reset request failed",
+            type: 'object',
+            properties: {
+              message: { type: 'string', description: 'Error message' },
+              url: { type: 'string', description: 'Request URL' },
+              'profile.email': { type: 'string', description: 'Email that was checked' }
+            }
+          }
+        }
       },
       handler: async function (request, reply) {
         const schemaPayload = {
@@ -377,7 +577,11 @@ export default class account {
           type: 'object',
           required: ['email'],
           properties: {
-            email: { type: 'string' }
+            email: { 
+              type: 'string', 
+              format: 'email',
+              description: 'Email address to check' 
+            }
           }
         },
         security: [{ apiauth: [] }],
@@ -385,9 +589,37 @@ export default class account {
           200: {
             type: 'object',
             properties: {
-              email: { type: 'string' },
-              roles: { type: 'array', items: { type: 'string' } },
-              exists: { type: 'boolean' }
+              email: { 
+                type: 'string', 
+                format: 'email',
+                description: 'Email address that was checked' 
+              },
+              roles: { 
+                type: 'array', 
+                description: 'Roles assigned to this email (empty if not found)',
+                items: { type: 'string' } 
+              },
+              exists: { 
+                type: 'boolean', 
+                description: 'Whether the email exists in the system' 
+              }
+            }
+          },
+          401: {
+            description: "Not authenticated",
+            type: 'object',
+            properties: {
+              statusCode: { type: 'integer' },
+              error: { type: 'string' },
+              message: { type: 'string' }
+            }
+          },
+          500: {
+            description: "Server error",
+            type: 'object',
+            properties: {
+              message: { type: 'string', description: 'Error message' }, 
+              error: { type: 'string', description: 'Error details' }
             }
           }
         }
