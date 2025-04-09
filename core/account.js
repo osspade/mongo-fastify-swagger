@@ -82,8 +82,10 @@ export default class account {
             return reply.status(409).send({ message: "Email already exists in the system" });
           }
 
-          // Ensure language is set with a fallback
-          const language = request.body.profile.language || 'en';
+          // Ensure language is valid (2-letter code) with 'en' fallback
+          const language = (request.body.profile.language && request.body.profile.language.length === 2) 
+            ? request.body.profile.language 
+            : 'en';
           
           // Make sure profile has language set
           const profile = {
@@ -449,7 +451,10 @@ export default class account {
               updateSchema['profile.phone'] = request.body.profile.phone;
             }
             if (request.body.profile.language) {
-              updateSchema['profile.language'] = request.body.profile.language;
+              // Validate language is exactly 2 characters, otherwise use 'en'
+              updateSchema['profile.language'] = (request.body.profile.language.length === 2) 
+                ? request.body.profile.language 
+                : 'en';
             }
             if (request.body.profile.email) {
               updateSchema['profile.email'] = request.body.profile.email;
@@ -663,4 +668,3 @@ export default class account {
   }
 
 };
-
