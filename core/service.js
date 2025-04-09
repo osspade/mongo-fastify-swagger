@@ -1,6 +1,8 @@
 import * as fs from 'node:fs';
 import path from 'node:path';
-const __dirname = import.meta.dirname;
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default class service {
 
