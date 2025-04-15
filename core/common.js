@@ -160,19 +160,6 @@ export default class common {
                 description: `Retrieve all ${_collection} records with basic fields`,
                 security: [{ apiauth: [] }],
                 response: {
-                    200: {
-                        type: 'array',
-                        items: {
-                            type: 'object',
-                            properties: {
-                                _id: { type: 'string', description: 'Unique identifier' },
-                                title: { type: 'string', description: 'Title of the record' },
-                                created: { type: 'string', format: 'date-time', description: 'Creation date' },
-                                profile: { type: 'object', description: 'Profile information' },
-                                details: { type: 'object', description: 'Additional details' }
-                            }
-                        }
-                    },
                     400: {
                         type: 'object',
                         properties: {
@@ -207,10 +194,6 @@ export default class common {
                 },
                 security: [{ apiauth: [] }],
                 response: {
-                    200: {
-                        type: 'object',
-                        description: `Complete ${_collection} record`
-                    },
                     400: {
                         type: 'object',
                         properties: {
@@ -239,10 +222,6 @@ export default class common {
                 },
                 security: [{ apiauth: [] }],
                 response: {
-                    200: {
-                        type: 'object',
-                        description: 'Property value or populated reference'
-                    },
                     400: {
                         type: 'object',
                         properties: {
@@ -275,13 +254,6 @@ export default class common {
                 },
                 security: [{ apiauth: [] }],
                 response: {
-                    200: {
-                        type: 'object',
-                        properties: {
-                            _id: { type: 'string', description: 'Identifier of the updated record' },
-                            updated: { type: 'array', items: { type: 'string' }, description: 'List of updated fields' }
-                        }
-                    },
                     400: {
                         type: 'object',
                         properties: {
@@ -356,12 +328,6 @@ export default class common {
                 },
                 security: [{ apiauth: [] }],
                 response: {
-                    200: {
-                        type: 'object',
-                        properties: {
-                            message: { type: 'string', description: 'Success message' }
-                        }
-                    },
                     400: {
                         type: 'object',
                         properties: {
@@ -408,12 +374,6 @@ export default class common {
                 },
                 security: [{ apiauth: [] }],
                 response: {
-                    200: {
-                        type: 'object',
-                        properties: {
-                            message: { type: 'string', description: 'Success message' }
-                        }
-                    },
                     400: {
                         type: 'object',
                         properties: {
@@ -461,12 +421,6 @@ export default class common {
                 },
                 security: [{ apiauth: [] }],
                 response: {
-                    200: {
-                        type: 'object',
-                        properties: {
-                            message: { type: 'string', description: 'Success message' }
-                        }
-                    },
                     400: {
                         type: 'object',
                         properties: {
