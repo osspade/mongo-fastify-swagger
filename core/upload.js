@@ -51,57 +51,6 @@ export default class upload {
                 },
                 security: [{ apiauth: [] }],
                 response: {
-                    200: {
-                        type: 'object',
-                        description: 'Successful upload response',
-                        properties: {
-                            title: { 
-                                type: 'string', 
-                                description: 'Title provided for the upload' 
-                            },
-                            notes: { 
-                                type: 'string', 
-                                description: 'Notes provided for the upload' 
-                            },
-                            files: { 
-                                type: 'array', 
-                                description: 'Details of uploaded files',
-                                items: {
-                                    type: 'object',
-                                    properties: {
-                                        filename: { 
-                                            type: 'string', 
-                                            description: 'Name of the uploaded file' 
-                                        },
-                                        path: { 
-                                            type: 'string', 
-                                            description: 'Path where the file was stored' 
-                                        }
-                                    }
-                                }
-                            },
-                            account$account: { 
-                                type: 'object', 
-                                description: 'Reference to the account that uploaded the files',
-                                properties: {
-                                    _id: { 
-                                        type: 'string', 
-                                        description: 'Unique identifier of the account' 
-                                    }
-                                }
-                            },
-                            share: { 
-                                type: 'array', 
-                                description: 'List of accounts this upload is shared with (empty by default)',
-                                items: { type: 'string' }
-                            },
-                            created: { 
-                                type: 'string', 
-                                format: 'date-time',
-                                description: 'Timestamp when the upload was created' 
-                            }
-                        }
-                    },
                     400: {
                         type: 'object',
                         description: 'Missing form data error',
