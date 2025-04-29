@@ -21,24 +21,6 @@ export default class form {
         description: `Retrieve all ${_collection} records`,
         security: [{ apiauth: [] }],
         response: {
-          200: {
-            type: 'array',
-            description: 'List of all form records',
-            items: {
-              type: 'object',
-              properties: {
-                _id: { type: 'string', description: 'Unique form identifier' },
-                title: { type: 'string', description: 'Form title' },
-                data: { type: 'object', description: 'Form structure and fields' },
-                response: { 
-                  type: 'array', 
-                  description: 'Responses submitted to this form',
-                  items: { type: 'object' }
-                },
-                created: { type: 'string', format: 'date-time', description: 'Form creation timestamp' }
-              }
-            }
-          },
           401: {
             type: 'object',
             description: 'Authentication error',
@@ -92,24 +74,6 @@ export default class form {
         },
         security: [{ apiauth: [] }],
         response: {
-          200: {
-            type: 'object',
-            description: 'Update confirmation',
-            properties: {
-              "form$form": { 
-                type: 'object',
-                description: 'Reference to the updated form',
-                properties: {
-                  _id: { type: 'string', description: 'Unique form identifier' }
-                }
-              },
-              "form.update": { 
-                type: 'array', 
-                description: 'List of fields that were updated',
-                items: { type: 'string' }
-              }
-            }
-          },
           400: {
             type: 'object',
             description: 'Update error',
@@ -182,16 +146,6 @@ export default class form {
         },
         security: [{ apiauth: [] }],
         response: {
-          200: {
-            type: 'object',
-            description: 'Response submission confirmation',
-            properties: {
-              response: { 
-                type: 'object', 
-                description: 'The submitted response data' 
-              }
-            }
-          },
           400: {
             type: 'object',
             description: 'Submission error',
@@ -265,20 +219,6 @@ export default class form {
         },
         security: [{ apiauth: [] }],
         response: {
-          200: {
-            type: 'object',
-            description: 'Form creation confirmation',
-            properties: {
-              acknowledged: { 
-                type: 'boolean', 
-                description: 'Whether the operation was acknowledged' 
-              },
-              insertedId: { 
-                type: 'string', 
-                description: 'ID of the newly created form' 
-              }
-            }
-          },
           400: {
             type: 'object',
             description: 'Creation error',
